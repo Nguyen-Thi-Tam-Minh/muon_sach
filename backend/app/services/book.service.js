@@ -10,18 +10,19 @@ class BookService {
     const book = {
       title: payload.title,
       author: payload.author,
+      image: payload.image, // Đã thêm trường image
       price: typeof payload.price === "number" ? payload.price : undefined,
-      copies: typeof payload.copies === "number" ? payload.copies : undefined, // Số quyển
-      publisher: payload.publisher,
+      copies: typeof payload.copies === "number" ? payload.copies : undefined,
+      maNXB: payload.maNXB ? new ObjectId(payload.maNXB) : undefined,
       publishedYear:
-        typeof payload.publishedYear === "number" ? payload.publishedYear : undefined,
+        typeof payload.publishedYear === "number"
+          ? payload.publishedYear
+          : undefined,
       tags: Array.isArray(payload.tags) ? payload.tags : undefined,
-      // có thể thêm fields khác từ lược đồ sau này
     };
 
-    Object.keys(book).forEach(
-      (k) => book[k] === undefined && delete book[k]
-    );
+    // Xóa các trường undefined
+    Object.keys(book).forEach((k) => book[k] === undefined && delete book[k]);
     return book;
   }
 
@@ -36,13 +37,11 @@ class BookService {
   }
 
   async findAll({ q }) {
-    // q = text search theo title/author/publisher
     const filter = q
       ? {
           $or: [
             { title: { $regex: q, $options: "i" } },
             { author: { $regex: q, $options: "i" } },
-            { publisher: { $regex: q, $options: "i" } },
             { tags: { $elemMatch: { $regex: q, $options: "i" } } },
           ],
         }

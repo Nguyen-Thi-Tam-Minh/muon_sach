@@ -5,7 +5,6 @@ class BorrowService {
     this.Borrow = client.db().collection("borrows");
     this.Book = client.db().collection("books");
     this.Reader = client.db().collection("readers");
-    this.Staff = client.db().collection("staff"); // chưa dùng
   }
 
   extractBorrowData(payload) {
@@ -21,22 +20,6 @@ class BorrowService {
     Object.keys(doc).forEach((k) => doc[k] === undefined && delete doc[k]);
     return doc;
   }
-  //Thêm mã NXB
-  extractBookData(payload) {
-    const book = {
-      title: payload.title,
-      author: payload.author,
-      price: typeof payload.price === "number" ? payload.price : undefined,
-      copies: typeof payload.copies === "number" ? payload.copies : undefined,
-      // publisher cũ là string, giờ ta dùng maNXB
-      maNXB: payload.maNXB ? new ObjectId(payload.maNXB) : undefined,
-      publishedYear:
-        typeof payload.publishedYear === "number"
-          ? payload.publishedYear
-          : undefined,
-      tags: Array.isArray(payload.tags) ? payload.tags : undefined,
-    };
-  }
 
   async _assertReaderAndBook(maDocGia, maSach) {
     const [reader, book] = await Promise.all([
@@ -48,30 +31,24 @@ class BorrowService {
     return { reader, book };
   }
 
-  // tạo yêu cầu mượn (pending)
+  // Tạo yêu cầu mượn
   async create(payload) {
     const { maDocGia, maSach } = payload;
     await this._assertReaderAndBook(maDocGia, maSach);
 
-    const doc = {
-      ...this.extractBorrowData(payload),
-      status: "pending",
-      ngayMuon: null,
-      ngayTra: null,
-      dueDate: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const result = await this.Borrow.insertOne(doc);
-    return await this.findById(result.insertedId);
-  }
-  //Trả sách trễ quá số lần quy định
-  async create(payload) {
-    const { maDocGia, maSach } = payload;
-    await this._assertReaderAndBook(maDocGia, maSach);
+    // 1. Kiểm tra đã mượn chưa (tránh trùng lặp trạng thái pending/borrowed cho cùng 1 cuốn)
+    const existingBorrow = await this.Borrow.findOne({
+      maDocGia: new ObjectId(maDocGia),
+      maSach: new ObjectId(maSach),
+      status: { $in: ["pending", "borrowed"] },
+    });
 
-    // --- LOGIC MỚI: Kiểm tra lịch sử trả muộn ---
-    // Tìm các phiếu đã trả (status='returned') của độc giả này mà ngày trả thực tế (ngayTra) lớn hơn hạn trả (dueDate)
+    if (existingBorrow) {
+      throw new Error("Bạn đã yêu cầu mượn sách này rồi.");
+    }
+
+    // 2. KIỂM TRA LỊCH SỬ TRẢ MUỘN (Yêu cầu của bạn)
+    // Nếu độc giả đã từng trả muộn quá 3 lần -> Chặn mượn tiếp
     const lateReturnsCount = await this.Borrow.countDocuments({
       maDocGia: new ObjectId(maDocGia),
       status: "returned",
@@ -81,7 +58,6 @@ class BorrowService {
     if (lateReturnsCount > 3) {
       throw new Error("Bạn không được mượn sách do trả muộn quá 3 lần.");
     }
-    // ---------------------------------------------
 
     const doc = {
       ...this.extractBorrowData(payload),
@@ -95,18 +71,46 @@ class BorrowService {
     const result = await this.Borrow.insertOne(doc);
     return await this.findById(result.insertedId);
   }
+
+  // Lấy danh sách kèm thông tin chi tiết
   async findAll({ status, maDocGia } = {}) {
     const filter = {};
     if (status) filter.status = status;
     if (maDocGia) filter.maDocGia = new ObjectId(maDocGia);
-    return await this.Borrow.find(filter).sort({ createdAt: -1 }).toArray();
+
+    const pipeline = [
+      { $match: filter },
+      { $sort: { createdAt: -1 } },
+      // Join bảng readers
+      {
+        $lookup: {
+          from: "readers",
+          localField: "maDocGia",
+          foreignField: "_id",
+          as: "reader",
+        },
+      },
+      { $unwind: { path: "$reader", preserveNullAndEmptyArrays: true } },
+      // Join bảng books
+      {
+        $lookup: {
+          from: "books",
+          localField: "maSach",
+          foreignField: "_id",
+          as: "book",
+        },
+      },
+      { $unwind: { path: "$book", preserveNullAndEmptyArrays: true } },
+    ];
+
+    return await this.Borrow.aggregate(pipeline).toArray();
   }
 
   async findById(id) {
     return await this.Borrow.findOne({ _id: new ObjectId(id) });
   }
 
-  // duyệt -> approved
+  // Duyệt (chỉ đổi trạng thái, chưa trừ sách)
   async approve(id, { msnv }) {
     const result = await this.Borrow.findOneAndUpdate(
       { _id: new ObjectId(id), status: "pending" },
@@ -123,25 +127,19 @@ class BorrowService {
     return result;
   }
 
-  // xác nhận đã mượn -> borrowed (trừ copies + set dueDate)
+  // Xác nhận đã mượn -> Trừ số lượng sách + Tính hạn trả
   async markBorrowed(id) {
     const borrow = await this.findById(id);
     if (!borrow) throw new Error("Borrow not found");
+
     if (!["approved", "pending"].includes(borrow.status)) {
       throw new Error("Invalid state transition to 'borrowed'");
     }
 
-    // 1) Kiểm tra số sách đang mượn
-    const maxBorrow = 3;
-    const currentBorrowing = await this.Borrow.countDocuments({
-      maDocGia: borrow.maDocGia,
-      status: "borrowed",
-    });
-    if (currentBorrowing >= maxBorrow) {
-      throw new Error("Reader has reached maximum borrowed books");
-    }
+    // --- ĐÃ XÓA CHECK MAX BORROW TẠI ĐÂY THEO YÊU CẦU ---
 
-    // 2) Kiểm tra quá hạn
+    // Kiểm tra xem độc giả có cuốn nào ĐANG mượn mà bị quá hạn không?
+    // (Nếu bạn không muốn chặn cái này thì có thể xóa luôn khối này)
     const now = new Date();
     const hasOverdue = await this.Borrow.findOne({
       maDocGia: borrow.maDocGia,
@@ -149,22 +147,26 @@ class BorrowService {
       dueDate: { $lt: now },
     });
     if (hasOverdue) {
-      throw new Error("Reader has overdue borrowed books");
+      throw new Error(
+        "Độc giả đang có sách mượn quá hạn, vui lòng trả trước khi mượn mới."
+      );
     }
-    // 3) Kiểm tra sách
+
+    // KIỂM TRA SỐ LƯỢNG SÁCH TRONG KHO (Yêu cầu của bạn)
     const book = await this.Book.findOne({ _id: borrow.maSach });
     if (!book) throw new Error("Book not found");
     if (!book.copies || book.copies <= 0) {
-      throw new Error("No copies available");
+      throw new Error("Sách này đã hết, không thể cho mượn.");
     }
 
-    // 4) Trừ copies
+    // Trừ số lượng sách trong kho
     await this.Book.updateOne(
       { _id: borrow.maSach, copies: { $gt: 0 } },
       { $inc: { copies: -1 } }
     );
 
-    const dueDays = 14; // cho mượn 14 ngày
+    // Tính hạn trả (25 ngày)
+    const dueDays = 25;
     const dueDate = new Date(now.getTime() + dueDays * 24 * 60 * 60 * 1000);
 
     const result = await this.Borrow.findOneAndUpdate(
@@ -179,10 +181,10 @@ class BorrowService {
       },
       { returnDocument: "after" }
     );
-    return result.value;
+    return result;
   }
 
-  // xác nhận đã trả -> returned (cộng copies)
+  // Xác nhận đã trả -> Cộng lại số lượng sách
   async markReturned(id) {
     const borrow = await this.findById(id);
     if (!borrow) throw new Error("Borrow not found");
@@ -190,6 +192,7 @@ class BorrowService {
       throw new Error("Only 'borrowed' can be returned");
     }
 
+    // Cộng lại số lượng sách vào kho
     await this.Book.updateOne({ _id: borrow.maSach }, { $inc: { copies: 1 } });
 
     const now = new Date();
@@ -204,7 +207,15 @@ class BorrowService {
       },
       { returnDocument: "after" }
     );
-    return result.value;
+    return result;
+  }
+
+  // Xóa phiếu mượn
+  async delete(id) {
+    const result = await this.Borrow.findOneAndDelete({
+      _id: new ObjectId(id),
+    });
+    return result;
   }
 }
 

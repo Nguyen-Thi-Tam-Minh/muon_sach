@@ -7,11 +7,14 @@ const router = express.Router();
 // Danh sách / Tạo yêu cầu mượn
 router
   .route("/")
-  .get(auth(["admin", "user"]), ctrl.findAll) // cả user và admin xem danh sách (tuỳ query)
-  .post(auth(["user"]), ctrl.create);        // chỉ user được tạo yêu cầu
+  .get(auth(["admin", "user"]), ctrl.findAll)
+  .post(auth(["user"]), ctrl.create);
 
-// Chi tiết phiếu
-router.get("/:id", auth(["admin", "user"]), ctrl.findOne);
+// Chi tiết phiếu / Xóa phiếu (THÊM DELETE)
+router
+  .route("/:id")
+  .get(auth(["admin", "user"]), ctrl.findOne)
+  .delete(auth(["admin"]), ctrl.delete);
 
 // Thao tác trạng thái (admin)
 router.patch("/:id/approve", auth(["admin"]), ctrl.approve);

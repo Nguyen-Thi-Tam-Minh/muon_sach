@@ -7,35 +7,24 @@
     </div>
 
     <div v-else class="bg-white border rounded-xl p-4 shadow-sm">
-      <div
-        class="flex flex-col gap-2 mb-3 md:flex-row md:items-center md:justify-between"
-      >
+      <div class="flex flex-col gap-2 mb-3 md:flex-row md:items-center md:justify-between">
         <div class="flex items-center gap-2 text-sm">
           <span class="text-slate-600">Sắp xếp theo:</span>
-          <select
-            v-model="sortKey"
-            class="border rounded-lg p-1.5 text-xs"
-          >
+          <select v-model="sortKey" class="border rounded-lg p-1.5 text-xs">
             <option value="ngayMuon">Ngày mượn</option>
             <option value="ngayTra">Ngày trả</option>
             <option value="status">Trạng thái</option>
           </select>
-          <button
-            class="px-2 py-1 border rounded-lg text-xs"
-            @click="toggleDir"
-          >
+          <button class="px-2 py-1 border rounded-lg text-xs" @click="toggleDir">
             {{ sortDir === "asc" ? "↑ Tăng dần" : "↓ Giảm dần" }}
           </button>
         </div>
 
         <div class="flex items-center gap-2 text-xs">
           <span class="text-slate-500">Hiển thị</span>
-          <select
-            v-model.number="pageSize"
-            class="border rounded-lg p-1.5 text-xs"
-          >
-            <option :value="5">5 / trang</option>
-            <option :value="10">10 / trang</option>
+          <select v-model.number="pageSize" class="border rounded-lg p-1.5 text-xs">
+            <option :value="5">5 mục</option>
+            <option :value="10">10 mục</option>
           </select>
         </div>
       </div>
@@ -62,16 +51,10 @@
                 </div>
               </td>
               <td class="border p-2 text-center">
-                <span
-                  class="px-2 py-0.5 rounded-full text-xs font-medium"
-                  :class="statusClass(r.status)"
-                >
-                  {{ r.status }}
+                <span class="px-3 py-1 rounded-full text-xs font-medium" :class="statusClass(r.status)">
+                  {{ formatStatus(r.status) }}
                 </span>
-                <div
-                  v-if="isOverdue(r)"
-                  class="text-[11px] text-rose-600 mt-1"
-                >
+                <div v-if="isOverdue(r)" class="text-[11px] text-rose-600 mt-1">
                   Quá hạn trả!
                 </div>
               </td>
@@ -94,10 +77,7 @@
         </table>
       </div>
 
-      <div
-        v-if="totalPages > 1"
-        class="flex items-center justify-between mt-3 text-xs text-slate-600"
-      >
+      <div v-if="totalPages > 1" class="flex items-center justify-between mt-3 text-xs text-slate-600">
         <div>
           Trang {{ currentPage }} / {{ totalPages }}
           <span class="text-slate-400">
@@ -105,18 +85,12 @@
           </span>
         </div>
         <div class="flex gap-1">
-          <button
-            class="px-2 py-1 border rounded disabled:opacity-40"
-            :disabled="currentPage === 1"
-            @click="currentPage--"
-          >
+          <button class="px-2 py-1 border rounded disabled:opacity-40" :disabled="currentPage === 1"
+            @click="currentPage--">
             ‹
           </button>
-          <button
-            class="px-2 py-1 border rounded disabled:opacity-40"
-            :disabled="currentPage === totalPages"
-            @click="currentPage++"
-          >
+          <button class="px-2 py-1 border rounded disabled:opacity-40" :disabled="currentPage === totalPages"
+            @click="currentPage++">
             ›
           </button>
         </div>
@@ -156,6 +130,19 @@ function isOverdue(r) {
     new Date(r.dueDate).getTime() < Date.now()
   );
 }
+
+// Hàm chuyển đổi trạng thái sang tiếng Việt
+function formatStatus(status) {
+  const map = {
+    pending: "Đang chờ duyệt",
+    approved: "Đã duyệt",
+    borrowed: "Đang mượn",
+    returned: "Đã trả",
+    rejected: "Đã từ chối"
+  };
+  return map[status] || status;
+}
+
 function statusClass(s) {
   switch (s) {
     case "pending":

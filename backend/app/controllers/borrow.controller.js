@@ -6,7 +6,6 @@ const svc = () => new BorrowService(MongoDB.getClient());
 
 exports.create = async (req, res, next) => {
   try {
-    // maDocGia lấy từ user đang đăng nhập
     if (!req.user?.readerId) {
       return res.status(400).json({ message: "User has no reader profile" });
     }
@@ -26,7 +25,9 @@ exports.findAll = async (req, res, next) => {
     const { status, maDocGia } = req.query;
     const data = await svc().findAll({ status, maDocGia });
     res.json(data);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.findOne = async (req, res, next) => {
@@ -34,26 +35,46 @@ exports.findOne = async (req, res, next) => {
     const data = await svc().findById(req.params.id);
     if (!data) return res.status(404).json({ message: "Borrow not found" });
     res.json(data);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.approve = async (req, res, next) => {
   try {
     const data = await svc().approve(req.params.id, { msnv: req.body.msnv });
     res.json(data);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.markBorrowed = async (req, res, next) => {
   try {
     const data = await svc().markBorrowed(req.params.id);
     res.json(data);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.markReturned = async (req, res, next) => {
   try {
     const data = await svc().markReturned(req.params.id);
     res.json(data);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
+};
+
+// THÊM HÀM XÓA
+exports.delete = async (req, res, next) => {
+  try {
+    const data = await svc().delete(req.params.id);
+    if (!data)
+      return res.status(404).json({ message: "Borrow record not found" });
+    res.json({ message: "Deleted successfully", data });
+  } catch (e) {
+    next(e);
+  }
 };

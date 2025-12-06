@@ -1,186 +1,122 @@
 <template>
   <section>
-    <h2 class="text-xl font-semibold mb-3">Quản lý phiếu mượn</h2>
+    <h2 class="text-xl font-semibold mb-3">Quản lý Mượn/Trả</h2>
+    <p class="text-sm text-gray-500 mb-4">Theo dõi và quản lý tất cả các hoạt động mượn trả sách trong hệ thống.</p>
 
     <div class="bg-white border rounded-xl p-4 shadow-sm">
-      <!-- Filter + page size -->
-      <div
-        class="flex flex-col gap-2 mb-3 md:flex-row md:items-center md:justify-between"
-      >
-        <div class="flex gap-2 items-center">
-          <span class="text-sm text-slate-600">Trạng thái:</span>
-          <select
-            class="border rounded-lg p-2 text-sm"
-            v-model="status"
-            @change="reload"
-          >
-            <option value="">Tất cả</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="approved">Đã duyệt</option>
-            <option value="borrowed">Đang mượn</option>
-            <option value="returned">Đã trả</option>
-          </select>
-          <button
-            class="px-3 py-2 text-xs rounded-lg border hover:bg-slate-50"
-            @click="reload"
-          >
-            Làm mới
+      <div class="flex flex-col gap-2 mb-3 md:flex-row md:items-center md:justify-between">
+        <div class="flex gap-2 items-center flex-wrap">
+
+          <div class="flex bg-gray-100 p-1 rounded-lg">
+            <button v-for="s in ['all', 'pending', 'approved', 'borrowed', 'returned']" :key="s"
+              @click="status = (s === 'all' ? '' : s); reload()"
+              class="px-3 py-1 text-xs font-medium rounded-md transition-all"
+              :class="(status === s || (s === 'all' && !status)) ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+              {{ statusLabel(s) }}
+            </button>
+          </div>
+
+          <button class="px-3 py-1.5 text-xs rounded-lg border hover:bg-slate-50 flex items-center gap-1"
+            @click="reload">
+            <span>↻</span> Làm mới
           </button>
         </div>
 
         <div class="flex items-center gap-2">
           <span class="text-xs text-slate-500">Hiển thị</span>
-          <select
-            v-model.number="pageSize"
-            class="border rounded-lg p-1.5 text-xs"
-          >
-            <option :value="5">5 / trang</option>
-            <option :value="10">10 / trang</option>
-            <option :value="20">20 / trang</option>
+          <select v-model.number="pageSize"
+            class="border rounded-lg p-1.5 text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+            <option :value="5">5 trang</option>
+            <option :value="10">10 trang</option>
+            <option :value="20">20 trang</option>
           </select>
         </div>
       </div>
 
-      <!-- Table -->
       <div class="overflow-x-auto">
-        <table class="w-full border text-sm">
+        <table class="w-full border text-sm text-left">
           <thead>
-            <tr class="bg-slate-50">
-              <th class="border p-2">Reader</th>
-              <th class="border p-2">Sách</th>
-              <th
-                class="border p-2 cursor-pointer text-center"
-                @click="setSort('status')"
-              >
-                Trạng thái
-                <span
-                  v-if="sortKey === 'status'"
-                  class="inline-block ml-1 text-[10px]"
-                >
-                  {{ sortDir === "asc" ? "▲" : "▼" }}
-                </span>
+            <tr class="bg-slate-50 text-slate-600">
+              <th class="border p-3 font-semibold">Tên sách</th>
+              <th class="border p-3 font-semibold">Người mượn</th>
+              <th class="border p-3 font-semibold text-center cursor-pointer" @click="setSort('ngayMuon')">
+                Ngày mượn <span v-if="sortKey === 'ngayMuon'">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
               </th>
-              <th
-                class="border p-2 cursor-pointer text-center"
-                @click="setSort('ngayMuon')"
-              >
-                Ngày mượn
-                <span
-                  v-if="sortKey === 'ngayMuon'"
-                  class="inline-block ml-1 text-[10px]"
-                >
-                  {{ sortDir === "asc" ? "▲" : "▼" }}
-                </span>
-              </th>
-              <th
-                class="border p-2 cursor-pointer text-center"
-                @click="setSort('ngayTra')"
-              >
-                Ngày trả
-                <span
-                  v-if="sortKey === 'ngayTra'"
-                  class="inline-block ml-1 text-[10px]"
-                >
-                  {{ sortDir === "asc" ? "▲" : "▼" }}
-                </span>
-              </th>
-              <th class="border p-2 text-center">Hạn trả</th>
-              <th class="border p-2 text-center">Hành động</th>
+              <th class="border p-3 font-semibold text-center">Ngày hẹn trả</th>
+              <th class="border p-3 font-semibold text-center">Trạng thái</th>
+              <th class="border p-3 font-semibold text-center w-32">Hành động</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in paginatedRows" :key="r._id">
-              <td class="border p-2 text-xs">
-                <div class="font-mono">{{ r.maDocGia }}</div>
+            <tr v-for="r in paginatedRows" :key="r._id" class="hover:bg-slate-50 transition-colors">
+              <td class="border p-3 font-medium text-slate-800 align-middle">
+                {{ r.book?.title || 'Sách không tồn tại' }}
               </td>
-              <td class="border p-2">
-                {{ bookName(r.maSach) }}
+
+              <td class="border p-3 align-middle">
+                <div class="font-medium text-indigo-600">{{ getReaderName(r) }}</div>
+                <div class="text-[10px] text-gray-400 font-mono hidden group-hover:block">{{ r.maDocGia }}</div>
               </td>
-              <td class="border p-2 text-center">
-                <span
-                  class="px-2 py-0.5 rounded-full text-xs font-medium"
-                  :class="statusClass(r.status)"
-                >
-                  {{ r.status }}
+
+              <td class="border p-3 text-center text-xs align-middle">
+                {{ fmt(r.ngayMuon) || '---' }}
+              </td>
+
+              <td class="border p-3 text-center text-xs align-middle">
+                <div v-if="r.dueDate">
+                  {{ fmt(r.dueDate) }}
+                  <div v-if="isOverdue(r)"
+                    class="text-[10px] text-rose-600 font-bold mt-1 bg-rose-50 inline-block px-1 rounded">
+                    Quá hạn
+                  </div>
+                </div>
+                <span v-else class="text-gray-400">---</span>
+              </td>
+
+              <td class="border p-3 text-center align-middle">
+                <span class="px-2.5 py-1 rounded-full text-xs font-medium border" :class="statusClass(r.status)">
+                  {{ formatStatus(r.status) }}
                 </span>
               </td>
-              <td class="border p-2 text-center text-xs">
-                {{ fmt(r.ngayMuon) }}
-              </td>
-              <td class="border p-2 text-center text-xs">
-                {{ fmt(r.ngayTra) }}
-              </td>
-              <td class="border p-2 text-center text-xs">
-                {{ fmt(r.dueDate) }}
-                <div
-                  v-if="isOverdue(r)"
-                  class="text-[11px] text-rose-600 mt-1"
-                >
-                  Quá hạn!
-                </div>
-              </td>
-              <td class="border p-2 text-center">
-                <div class="flex flex-wrap gap-1 justify-center text-xs">
-                  <button
-                    v-if="r.status === 'pending'"
-                    class="px-2 py-1 border rounded hover:bg-slate-50"
-                    @click="approve(r)"
-                  >
+
+              <td class="border p-3 text-center align-middle">
+                <div class="flex items-center justify-center gap-2">
+
+                  <button v-if="['pending', 'approved'].includes(r.status)" @click="borrowed(r)"
+                    class="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition shadow-sm whitespace-nowrap font-medium">
                     Duyệt
                   </button>
-                  <button
-                    v-if="r.status === 'pending' || r.status === 'approved'"
-                    class="px-2 py-1 border rounded hover:bg-slate-50"
-                    @click="borrowed(r)"
-                  >
-                    Đã mượn
-                  </button>
-                  <button
-                    v-if="r.status === 'borrowed'"
-                    class="px-2 py-1 border rounded hover:bg-slate-50"
-                    @click="returned(r)"
-                  >
+
+                  <button v-if="r.status === 'borrowed'" @click="returned(r)"
+                    class="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 transition whitespace-nowrap">
                     Đã trả
+                  </button>
+
+                  <button @click="remove(r)"
+                    class="text-xs w-7 h-7 flex items-center justify-center text-rose-500 hover:bg-rose-50 hover:text-rose-700 rounded-full transition"
+                    title="Xóa phiếu">
+                    ✕
                   </button>
                 </div>
               </td>
             </tr>
 
             <tr v-if="!paginatedRows.length">
-              <td colspan="7" class="border p-2 text-center text-slate-500">
-                Không có phiếu mượn.
+              <td colspan="6" class="border p-8 text-center text-slate-500 italic">
+                Không tìm thấy dữ liệu phù hợp.
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- Pagination -->
-      <div
-        v-if="totalPages > 1"
-        class="flex items-center justify-between mt-3 text-xs"
-      >
-        <div>
-          Trang {{ currentPage }} / {{ totalPages }}
-          <span class="text-slate-500">
-            ({{ rows.length }} phiếu)
-          </span>
-        </div>
+      <div v-if="totalPages > 1" class="flex items-center justify-between mt-4 text-xs text-slate-600">
+        <div>Trang {{ currentPage }} / {{ totalPages }} ({{ rows.length }} phiếu)</div>
         <div class="flex gap-1">
-          <button
-            class="px-2 py-1 border rounded disabled:opacity-40"
-            :disabled="currentPage === 1"
-            @click="currentPage--"
-          >
-            ‹
-          </button>
-          <button
-            class="px-2 py-1 border rounded disabled:opacity-40"
-            :disabled="currentPage === totalPages"
-            @click="currentPage++"
-          >
-            ›
-          </button>
+          <button class="px-2 py-1 border rounded hover:bg-gray-100 disabled:opacity-50" :disabled="currentPage === 1"
+            @click="currentPage--">Trước</button>
+          <button class="px-2 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+            :disabled="currentPage === totalPages" @click="currentPage++">Sau</button>
         </div>
       </div>
     </div>
@@ -190,151 +126,130 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import BorrowService from "@/services/borrow.service";
-import BookService from "@/services/book.service";
+import createApiClient from "@/services/api.service";
 import { showToast } from "@/stores/toast";
 
 const status = ref("");
 const rows = ref([]);
-const books = ref([]);
-
 const sortKey = ref("ngayMuon");
 const sortDir = ref("desc");
 const currentPage = ref(1);
 const pageSize = ref(5);
 
-const bookMap = computed(() =>
-  Object.fromEntries(books.value.map((b) => [b._id, b]))
-);
+const api = createApiClient("/api/borrows");
 
-function bookName(id) {
-  return bookMap.value[id]?.title || id;
+function statusLabel(s) {
+  const map = { all: 'Tất cả', pending: 'Chờ duyệt', approved: 'Đã duyệt', borrowed: 'Đang mượn', returned: 'Đã trả' };
+  return map[s] || s;
 }
-function fmt(d) {
-  return d ? new Date(d).toLocaleString() : "";
+
+function formatStatus(status) {
+  const map = {
+    pending: "Chờ duyệt",
+    approved: "Đã duyệt",
+    borrowed: "Đang mượn",
+    returned: "Đã trả",
+    rejected: "Từ chối"
+  };
+  return map[status] || status;
 }
-function isOverdue(r) {
-  return (
-    r.status === "borrowed" &&
-    r.dueDate &&
-    new Date(r.dueDate).getTime() < Date.now()
-  );
-}
+
 function statusClass(s) {
   switch (s) {
-    case "pending":
-      return "bg-slate-100 text-slate-700";
-    case "approved":
-      return "bg-amber-100 text-amber-800";
-    case "borrowed":
-      return "bg-blue-100 text-blue-800";
-    case "returned":
-      return "bg-emerald-100 text-emerald-800";
-    default:
-      return "bg-slate-100 text-slate-700";
+    case "pending": return "bg-gray-100 text-gray-600 border-gray-200";
+    case "approved": return "bg-amber-50 text-amber-700 border-amber-200";
+    case "borrowed": return "bg-blue-50 text-blue-700 border-blue-200";
+    case "returned": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    default: return "bg-gray-50 text-gray-500 border-gray-200";
   }
 }
 
-async function loadBase() {
-  books.value = await BookService.getAll();
+function getReaderName(r) {
+  if (r.reader) {
+    const fullName = `${r.reader.hoLot || ''} ${r.reader.ten || ''}`.trim();
+    return fullName || "Độc giả không tên";
+  }
+  return "Không xác định";
+}
+
+function fmt(d) {
+  if (!d) return "";
+  const date = new Date(d);
+  return date.toLocaleDateString("vi-VN");
+}
+
+function isOverdue(r) {
+  return r.status === "borrowed" && r.dueDate && new Date(r.dueDate).getTime() < Date.now();
 }
 
 async function reload() {
-  const params = {};
-  if (status.value) params.status = status.value;
-  rows.value = await BorrowService.list(params);
-  currentPage.value = 1;
+  try {
+    const params = {};
+    if (status.value) params.status = status.value;
+    rows.value = await BorrowService.list(params);
+    currentPage.value = 1;
+  } catch (e) {
+    console.error(e);
+    showToast("Không tải được danh sách", "error");
+  }
 }
 
-onMounted(async () => {
-  await loadBase();
-  await reload();
-});
+onMounted(reload);
 
-// SORT + PAGINATION
 const sortedRows = computed(() => {
   const arr = [...rows.value];
   arr.sort((a, b) => {
     let va = a[sortKey.value];
     let vb = b[sortKey.value];
-    if (sortKey.value === "ngayMuon" || sortKey.value === "ngayTra") {
+    if (["ngayMuon", "dueDate", "createdAt"].includes(sortKey.value)) {
       va = va ? new Date(va).getTime() : 0;
       vb = vb ? new Date(vb).getTime() : 0;
     }
-
-    if (va == null && vb == null) return 0;
-    if (va == null) return sortDir.value === "asc" ? 1 : -1;
-    if (vb == null) return sortDir.value === "asc" ? -1 : 1;
-
-    if (typeof va === "number" && typeof vb === "number") {
-      return sortDir.value === "asc" ? va - vb : vb - va;
-    }
-
-    const sa = String(va).toLowerCase();
-    const sb = String(vb).toLowerCase();
-    if (sa < sb) return sortDir.value === "asc" ? -1 : 1;
-    if (sa > sb) return sortDir.value === "asc" ? 1 : -1;
+    if (va < vb) return sortDir.value === "asc" ? -1 : 1;
+    if (va > vb) return sortDir.value === "asc" ? 1 : -1;
     return 0;
   });
   return arr;
 });
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(sortedRows.value.length / pageSize.value))
-);
-
+const totalPages = computed(() => Math.ceil(sortedRows.value.length / pageSize.value) || 1);
 const paginatedRows = computed(() => {
-  if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;
   const start = (currentPage.value - 1) * pageSize.value;
   return sortedRows.value.slice(start, start + pageSize.value);
 });
 
 function setSort(key) {
-  if (sortKey.value === key) {
-    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
-  } else {
-    sortKey.value = key;
-    sortDir.value = "asc";
-  }
+  if (sortKey.value === key) sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  else { sortKey.value = key; sortDir.value = "desc"; }
 }
 
-// ACTIONS (fix: luôn reload, show toast nếu lỗi)
-async function approve(r) {
-  try {
-    await BorrowService.approve(r._id);
-    showToast("Đã duyệt phiếu mượn", "success");
-  } catch (e) {
-    showToast(
-      e?.response?.data?.message || "Không duyệt được phiếu mượn",
-      "error"
-    );
-  } finally {
-    await reload();
-  }
-}
+// ACTIONS
 async function borrowed(r) {
   try {
+    // Gọi hàm markBorrowed để chuyển trạng thái sang borrowed
     await BorrowService.markBorrowed(r._id);
-    showToast("Đã ghi nhận 'đã mượn'", "success");
-  } catch (e) {
-    showToast(
-      e?.response?.data?.message || "Không thể chuyển sang 'đã mượn'",
-      "error"
-    );
-  } finally {
+    showToast("Đã duyệt và xác nhận mượn", "success");
     await reload();
-  }
+  } catch (e) { showToast(e.response?.data?.message || "Lỗi", "error"); }
 }
+
 async function returned(r) {
+  if (!confirm("Xác nhận độc giả đã trả sách?")) return;
   try {
     await BorrowService.markReturned(r._id);
     showToast("Đã trả sách", "success");
-  } catch (e) {
-    showToast(
-      e?.response?.data?.message || "Không thể ghi nhận 'đã trả'",
-      "error"
-    );
-  } finally {
     await reload();
+  } catch (e) { showToast("Lỗi trả sách", "error"); }
+}
+
+async function remove(r) {
+  if (!confirm("Bạn có chắc chắn muốn xóa phiếu mượn này không?")) return;
+  try {
+    await api.delete(`/${r._id}`);
+    showToast("Đã xóa phiếu", "success");
+    rows.value = rows.value.filter(item => item._id !== r._id);
+  } catch (e) {
+    showToast("Không thể xóa phiếu", "error");
   }
 }
 </script>
