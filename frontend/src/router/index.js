@@ -12,7 +12,7 @@ import AdminBorrows from "@/views/AdminBorrows.vue";
 import AdminUsers from "@/views/AdminUsers.vue";
 import AdminDashboard from "@/views/AdminDashboard.vue";
 import UserProfile from "@/views/UserProfile.vue";
-
+import AdminPublishers from "@/views/AdminPublishers.vue"; // Quản lý NXB
 const routes = [
   { path: "/login", component: Login },
   { path: "/register", component: Register },
@@ -30,6 +30,7 @@ const routes = [
     children: [
       { path: "dashboard", component: AdminDashboard },
       { path: "books", component: AdminBooks },
+      { path: "publishers", component: AdminPublishers },
       { path: "borrows", component: AdminBorrows },
       { path: "users", component: AdminUsers },
       { path: "", redirect: "/admin/books" },

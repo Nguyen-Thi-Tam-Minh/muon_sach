@@ -4,80 +4,70 @@
 
     <div class="grid md:grid-cols-2 gap-4">
       <!-- FORM -->
-      <form
-        @submit.prevent="submit"
-        class="bg-white border rounded-xl p-4 space-y-3 shadow-sm"
-      >
+      <form @submit.prevent="submit" class="bg-white border rounded-xl p-4 space-y-3 shadow-sm">
         <h3 class="font-semibold">
           {{ form._id ? "Sửa sách" : "Thêm sách mới" }}
         </h3>
 
         <div>
           <label class="block text-sm mb-1">Tiêu đề</label>
-          <input
-            class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            v-model="form.title"
-            required
-          />
+          <input class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            v-model="form.title" required />
         </div>
 
         <div>
           <label class="block text-sm mb-1">Tác giả</label>
-          <input
-            class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            v-model="form.author"
-          />
+          <input class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            v-model="form.author" />
         </div>
 
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-sm mb-1">Số quyển (copies)</label>
-            <input
-              type="number"
-              min="0"
+            <input type="number" min="0"
               class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              v-model.number="form.copies"
-            />
+              v-model.number="form.copies" />
           </div>
           <div>
             <label class="block text-sm mb-1">Năm XB</label>
-            <input
-              type="number"
+            <input type="number"
               class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              v-model.number="form.publishedYear"
-            />
+              v-model.number="form.publishedYear" />
           </div>
         </div>
 
-        <div>
+        <!-- <div>
           <label class="block text-sm mb-1">Nhà xuất bản</label>
           <input
             class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
             v-model="form.publisher"
           />
+        </div> -->
+        <div>
+          <label class="block text-sm mb-1">Nhà xuất bản</label>
+          <select class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            v-model="form.maNXB">
+            <option :value="undefined">-- Chọn NXB --</option>
+            <option v-for="p in publishers" :key="p._id" :value="p._id">
+              {{ p.name }}
+            </option>
+          </select>
         </div>
 
         <div>
           <label class="block text-sm mb-1">Tags (cách nhau bởi dấu phẩy)</label>
-          <input
-            class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-            v-model="tags"
-          />
+          <input class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            v-model="tags" />
         </div>
 
         <div class="flex gap-2">
           <button
             class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
-            type="submit"
-          >
+            type="submit">
             {{ form._id ? "Cập nhật" : "Thêm" }}
           </button>
-          <button
-            v-if="form._id"
-            type="button"
-            class="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50"
-            @click="reset"
-          >
+          <button v-if="form._id" type="button" class="px-3 py-2 rounded-lg border text-sm hover:bg-slate-50"
+            @click="reset">
             Hủy
           </button>
         </div>
@@ -88,14 +78,8 @@
         <div class="flex flex-col gap-2 mb-3 md:flex-row md:items-center">
           <input
             class="border rounded-lg p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="Tìm theo tiêu đề, tác giả, NXB, tags..."
-            v-model="q"
-            @keyup.enter="currentPage = 1"
-          />
-          <select
-            v-model.number="pageSize"
-            class="border rounded-lg p-2 text-sm w-32"
-          >
+            placeholder="Tìm theo tiêu đề, tác giả, NXB, tags..." v-model="q" @keyup.enter="currentPage = 1" />
+          <select v-model.number="pageSize" class="border rounded-lg p-2 text-sm w-32">
             <option :value="5">5 / trang</option>
             <option :value="10">10 / trang</option>
             <option :value="20">20 / trang</option>
@@ -106,51 +90,27 @@
           <table class="w-full border text-sm">
             <thead>
               <tr class="bg-slate-50">
-                <th
-                  class="border p-2 text-left cursor-pointer"
-                  @click="setSort('title')"
-                >
+                <th class="border p-2 text-left cursor-pointer" @click="setSort('title')">
                   Tiêu đề
-                  <span
-                    v-if="sortKey === 'title'"
-                    class="inline-block ml-1 text-[10px]"
-                  >
+                  <span v-if="sortKey === 'title'" class="inline-block ml-1 text-[10px]">
                     {{ sortDir === "asc" ? "▲" : "▼" }}
                   </span>
                 </th>
-                <th
-                  class="border p-2 text-left cursor-pointer"
-                  @click="setSort('author')"
-                >
+                <th class="border p-2 text-left cursor-pointer" @click="setSort('author')">
                   Tác giả
-                  <span
-                    v-if="sortKey === 'author'"
-                    class="inline-block ml-1 text-[10px]"
-                  >
+                  <span v-if="sortKey === 'author'" class="inline-block ml-1 text-[10px]">
                     {{ sortDir === "asc" ? "▲" : "▼" }}
                   </span>
                 </th>
-                <th
-                  class="border p-2 text-center cursor-pointer w-20"
-                  @click="setSort('copies')"
-                >
+                <th class="border p-2 text-center cursor-pointer w-20" @click="setSort('copies')">
                   Còn
-                  <span
-                    v-if="sortKey === 'copies'"
-                    class="inline-block ml-1 text-[10px]"
-                  >
+                  <span v-if="sortKey === 'copies'" class="inline-block ml-1 text-[10px]">
                     {{ sortDir === "asc" ? "▲" : "▼" }}
                   </span>
                 </th>
-                <th
-                  class="border p-2 text-center cursor-pointer w-24"
-                  @click="setSort('publishedYear')"
-                >
+                <th class="border p-2 text-center cursor-pointer w-24" @click="setSort('publishedYear')">
                   Năm XB
-                  <span
-                    v-if="sortKey === 'publishedYear'"
-                    class="inline-block ml-1 text-[10px]"
-                  >
+                  <span v-if="sortKey === 'publishedYear'" class="inline-block ml-1 text-[10px]">
                     {{ sortDir === "asc" ? "▲" : "▼" }}
                   </span>
                 </th>
@@ -178,16 +138,10 @@
                   {{ b.publishedYear || "-" }}
                 </td>
                 <td class="border p-2 text-center align-top">
-                  <button
-                    class="px-2 py-1 rounded border text-xs mr-1 hover:bg-slate-50"
-                    @click="edit(b)"
-                  >
+                  <button class="px-2 py-1 rounded border text-xs mr-1 hover:bg-slate-50" @click="edit(b)">
                     Sửa
                   </button>
-                  <button
-                    class="px-2 py-1 rounded border text-xs text-rose-600 hover:bg-rose-50"
-                    @click="remove(b)"
-                  >
+                  <button class="px-2 py-1 rounded border text-xs text-rose-600 hover:bg-rose-50" @click="remove(b)">
                     Xóa
                   </button>
                 </td>
@@ -202,10 +156,7 @@
         </div>
 
         <!-- PAGINATION -->
-        <div
-          v-if="totalPages > 1"
-          class="flex items-center justify-between mt-3 text-xs"
-        >
+        <div v-if="totalPages > 1" class="flex items-center justify-between mt-3 text-xs">
           <div>
             Trang {{ currentPage }} / {{ totalPages }}
             <span class="text-slate-500">
@@ -213,18 +164,12 @@
             </span>
           </div>
           <div class="flex gap-1">
-            <button
-              class="px-2 py-1 border rounded disabled:opacity-40"
-              :disabled="currentPage === 1"
-              @click="currentPage--"
-            >
+            <button class="px-2 py-1 border rounded disabled:opacity-40" :disabled="currentPage === 1"
+              @click="currentPage--">
               ‹
             </button>
-            <button
-              class="px-2 py-1 border rounded disabled:opacity-40"
-              :disabled="currentPage === totalPages"
-              @click="currentPage++"
-            >
+            <button class="px-2 py-1 border rounded disabled:opacity-40" :disabled="currentPage === totalPages"
+              @click="currentPage++">
               ›
             </button>
           </div>
@@ -238,6 +183,7 @@
 import { ref, computed, onMounted } from "vue";
 import BookService from "@/services/book.service";
 import { showToast } from "@/stores/toast";
+import PublisherService from "@/services/publisher.service";
 
 const books = ref([]);
 const q = ref("");
@@ -254,7 +200,13 @@ function reset() {
 }
 
 async function load() {
-  books.value = await BookService.getAll();
+  //books.value = await BookService.getAll();
+  const [bData, pData] = await Promise.all([
+    BookService.getAll(),
+    PublisherService.getAll()
+  ]);
+  books.value = bData;
+  publishers.value = pData;
 }
 
 onMounted(load);
@@ -318,7 +270,9 @@ function setSort(key) {
 }
 
 function edit(b) {
-  form.value = { ...b };
+  // form.value = { ...b };
+  // tags.value = (b.tags || []).join(", ");
+  form.value = { ...b, maNXB: b.maNXB }; // đảm bảo map đúng field
   tags.value = (b.tags || []).join(", ");
 }
 

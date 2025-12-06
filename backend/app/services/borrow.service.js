@@ -21,6 +21,22 @@ class BorrowService {
     Object.keys(doc).forEach((k) => doc[k] === undefined && delete doc[k]);
     return doc;
   }
+  //Thêm mã NXB
+  extractBookData(payload) {
+    const book = {
+      title: payload.title,
+      author: payload.author,
+      price: typeof payload.price === "number" ? payload.price : undefined,
+      copies: typeof payload.copies === "number" ? payload.copies : undefined,
+      // publisher cũ là string, giờ ta dùng maNXB
+      maNXB: payload.maNXB ? new ObjectId(payload.maNXB) : undefined,
+      publishedYear:
+        typeof payload.publishedYear === "number"
+          ? payload.publishedYear
+          : undefined,
+      tags: Array.isArray(payload.tags) ? payload.tags : undefined,
+    };
+  }
 
   async _assertReaderAndBook(maDocGia, maSach) {
     const [reader, book] = await Promise.all([
@@ -49,14 +65,41 @@ class BorrowService {
     const result = await this.Borrow.insertOne(doc);
     return await this.findById(result.insertedId);
   }
+  //Trả sách trễ quá số lần quy định
+  async create(payload) {
+    const { maDocGia, maSach } = payload;
+    await this._assertReaderAndBook(maDocGia, maSach);
 
+    // --- LOGIC MỚI: Kiểm tra lịch sử trả muộn ---
+    // Tìm các phiếu đã trả (status='returned') của độc giả này mà ngày trả thực tế (ngayTra) lớn hơn hạn trả (dueDate)
+    const lateReturnsCount = await this.Borrow.countDocuments({
+      maDocGia: new ObjectId(maDocGia),
+      status: "returned",
+      $expr: { $gt: ["$ngayTra", "$dueDate"] },
+    });
+
+    if (lateReturnsCount > 3) {
+      throw new Error("Bạn không được mượn sách do trả muộn quá 3 lần.");
+    }
+    // ---------------------------------------------
+
+    const doc = {
+      ...this.extractBorrowData(payload),
+      status: "pending",
+      ngayMuon: null,
+      ngayTra: null,
+      dueDate: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const result = await this.Borrow.insertOne(doc);
+    return await this.findById(result.insertedId);
+  }
   async findAll({ status, maDocGia } = {}) {
     const filter = {};
     if (status) filter.status = status;
     if (maDocGia) filter.maDocGia = new ObjectId(maDocGia);
-    return await this.Borrow.find(filter)
-      .sort({ createdAt: -1 })
-      .toArray();
+    return await this.Borrow.find(filter).sort({ createdAt: -1 }).toArray();
   }
 
   async findById(id) {
@@ -108,7 +151,6 @@ class BorrowService {
     if (hasOverdue) {
       throw new Error("Reader has overdue borrowed books");
     }
-
     // 3) Kiểm tra sách
     const book = await this.Book.findOne({ _id: borrow.maSach });
     if (!book) throw new Error("Book not found");
@@ -148,10 +190,7 @@ class BorrowService {
       throw new Error("Only 'borrowed' can be returned");
     }
 
-    await this.Book.updateOne(
-      { _id: borrow.maSach },
-      { $inc: { copies: 1 } }
-    );
+    await this.Book.updateOne({ _id: borrow.maSach }, { $inc: { copies: 1 } });
 
     const now = new Date();
     const result = await this.Borrow.findOneAndUpdate(

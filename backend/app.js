@@ -7,6 +7,7 @@ const authRouter = require("./app/routes/auth.route");
 const usersRouter = require("./app/routes/user.route");
 const statsRouter = require("./app/routes/stats.route");
 const meRouter = require("./app/routes/me.route");
+const publishersRouter = require("./app/routes/publisher.route");
 
 const app = express();
 
@@ -24,7 +25,7 @@ app.use("/api/readers", readersRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/stats", statsRouter);
 app.use("/api/me", meRouter);
-
+app.use("/api/publishers", publishersRouter);
 // 404 + error handler như trước
 app.use((req, res) => res.status(404).json({ message: "Resource not found" }));
 app.use((err, req, res, next) => {

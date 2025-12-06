@@ -1,16 +1,9 @@
 <template>
   <section>
     <div class="flex gap-2 mb-3 flex-wrap">
-      <input
-        class="border rounded-lg p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        v-model="q"
-        placeholder="Tìm theo tên sách, tác giả, NXB, tags..."
-        @keyup.enter="currentPage = 1"
-      />
-      <select
-        v-model.number="pageSize"
-        class="border rounded-lg p-2 text-sm"
-      >
+      <input class="border rounded-lg p-2 flex-1 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        v-model="q" placeholder="Tìm theo tên sách, tác giả, NXB, tags..." @keyup.enter="currentPage = 1" />
+      <select v-model.number="pageSize" class="border rounded-lg p-2 text-sm">
         <option :value="5">5 / trang</option>
         <option :value="10">10 / trang</option>
         <option :value="20">20 / trang</option>
@@ -19,54 +12,46 @@
 
     <div class="overflow-x-auto bg-white border rounded-xl shadow-sm">
       <table class="w-full text-sm">
-      <thead>
-        <tr class="bg-slate-50">
-          <th
-            class="p-2 border text-left cursor-pointer"
-            @click="setSort('title')"
-          >
-            Tên sách
-            <span
-              v-if="sortKey === 'title'"
-              class="inline-block ml-1 text-[10px]"
-            >
-              {{ sortDir === "asc" ? "▲" : "▼" }}
-            </span>
-          </th>
-          <th
-            class="p-2 border text-left cursor-pointer"
-            @click="setSort('author')"
-          >
-            Tác giả
-            <span
-              v-if="sortKey === 'author'"
-              class="inline-block ml-1 text-[10px]"
-            >
-              {{ sortDir === "asc" ? "▲" : "▼" }}
-            </span>
-          </th>
-          <th
-            class="p-2 border text-center cursor-pointer w-24"
-            @click="setSort('copies')"
-          >
-            Còn
-            <span
-              v-if="sortKey === 'copies'"
-              class="inline-block ml-1 text-[10px]"
-            >
-              {{ sortDir === "asc" ? "▲" : "▼" }}
-            </span>
-          </th>
-          <th class="p-2 border text-center w-40">Hành động</th>
-        </tr>
-      </thead>
+        <thead>
+          <tr class="bg-slate-50">
+            <th class="p-2 border text-left cursor-pointer" @click="setSort('title')">
+              Tên sách
+              <span v-if="sortKey === 'title'" class="inline-block ml-1 text-[10px]">
+                {{ sortDir === "asc" ? "▲" : "▼" }}
+              </span>
+            </th>
+            <th class="p-2 border text-left cursor-pointer" @click="setSort('author')">
+              Tác giả
+              <span v-if="sortKey === 'author'" class="inline-block ml-1 text-[10px]">
+                {{ sortDir === "asc" ? "▲" : "▼" }}
+              </span>
+            </th>
+            <th class="p-2 border text-center cursor-pointer w-24" @click="setSort('copies')">
+              Còn
+              <span v-if="sortKey === 'copies'" class="inline-block ml-1 text-[10px]">
+                {{ sortDir === "asc" ? "▲" : "▼" }}
+              </span>
+            </th>
+            <th class="p-2 border text-center w-40">Hành động</th>
+          </tr>
+        </thead>
 
         <tbody>
           <tr v-for="b in paginatedBooks" :key="b._id">
-            <td class="p-2 border align-top">
+            <!-- <td class="p-2 border align-top">
               <div class="font-semibold">{{ b.title }}</div>
               <div class="text-xs text-slate-500" v-if="b.publisher">
                 NXB: {{ b.publisher }}
+              </div>
+              <div class="text-[11px] text-slate-400" v-if="b.tags?.length">
+                Tags: {{ b.tags.join(", ") }}
+              </div>
+            </td> -->
+            <td class="p-2 border align-top">
+              <div class="font-semibold">{{ b.title }}</div>
+
+              <div class="text-xs text-slate-500" v-if="b.maNXB">
+                NXB: {{ publisherMap[b.maNXB] || 'Không xác định' }}
               </div>
               <div class="text-[11px] text-slate-400" v-if="b.tags?.length">
                 Tags: {{ b.tags.join(", ") }}
@@ -79,20 +64,14 @@
               {{ b.copies ?? 0 }}
             </td>
             <td class="p-2 border text-center align-top">
-              <button
-                class="px-3 py-1 rounded-lg border text-xs hover:bg-slate-50"
-                :disabled="!canBorrow(b)"
-                @click="borrow(b)"
-              >
+              <button class="px-3 py-1 rounded-lg border text-xs hover:bg-slate-50" :disabled="!canBorrow(b)"
+                @click="borrow(b)">
                 Mượn
               </button>
               <div v-if="!auth.readerId()" class="mt-1 text-[11px] text-rose-500">
                 Hãy nhập readerId ở trên.
               </div>
-              <div
-                v-else-if="(b.copies ?? 0) <= 0"
-                class="mt-1 text-[11px] text-slate-500"
-              >
+              <div v-else-if="(b.copies ?? 0) <= 0" class="mt-1 text-[11px] text-slate-500">
                 Hết sách.
               </div>
             </td>
@@ -107,10 +86,7 @@
     </div>
 
     <!-- Pagination info -->
-    <div
-      v-if="totalPages > 1"
-      class="flex items-center justify-between mt-3 text-xs text-slate-600"
-    >
+    <div v-if="totalPages > 1" class="flex items-center justify-between mt-3 text-xs text-slate-600">
       <div>
         Trang {{ currentPage }} / {{ totalPages }}
         <span class="text-slate-400">
@@ -118,18 +94,12 @@
         </span>
       </div>
       <div class="flex gap-1">
-        <button
-          class="px-2 py-1 border rounded disabled:opacity-40"
-          :disabled="currentPage === 1"
-          @click="currentPage--"
-        >
+        <button class="px-2 py-1 border rounded disabled:opacity-40" :disabled="currentPage === 1"
+          @click="currentPage--">
           ‹
         </button>
-        <button
-          class="px-2 py-1 border rounded disabled:opacity-40"
-          :disabled="currentPage === totalPages"
-          @click="currentPage++"
-        >
+        <button class="px-2 py-1 border rounded disabled:opacity-40" :disabled="currentPage === totalPages"
+          @click="currentPage++">
           ›
         </button>
       </div>
@@ -143,7 +113,12 @@ import BookService from "@/services/book.service";
 import BorrowService from "@/services/borrow.service";
 import { auth } from "@/stores/auth";
 import { showToast } from "@/stores/toast";
+import PublisherService from "@/services/publisher.service";
 
+const publishers = ref([]);
+const publisherMap = computed(() =>
+  Object.fromEntries(publishers.value.map(p => [p._id, p.name]))
+);
 const books = ref([]);
 const q = ref("");
 const sortKey = ref("title");
@@ -157,11 +132,21 @@ function canBorrow(b) {
 }
 
 async function load() {
-  loading.value = true;
+  loading.value = true; // Bật trạng thái loading
   try {
-    books.value = await BookService.getAll();
+    // Gọi song song 2 API: lấy sách và lấy nhà xuất bản
+    const [bData, pData] = await Promise.all([
+      BookService.getAll(),
+      PublisherService.getAll()
+    ]);
+
+    books.value = bData;
+    publishers.value = pData;
+  } catch (error) {
+    console.error("Lỗi tải dữ liệu:", error);
+    // Có thể thêm showToast("Lỗi tải trang", "error") nếu muốn
   } finally {
-    loading.value = false;
+    loading.value = false; // Tắt loading dù thành công hay thất bại
   }
 }
 
