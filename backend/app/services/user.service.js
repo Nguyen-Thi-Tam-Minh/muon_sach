@@ -1,19 +1,141 @@
+// const { ObjectId } = require("mongodb");
+// const bcrypt = require("bcryptjs");
+
+// class UserService {
+//   constructor(client) {
+//     this.db = client.db();
+//     this.User = this.db.collection("users");
+//     this.Reader = this.db.collection("readers");
+//   }
+
+//   extract(data) {
+//     const doc = {
+//       username: data.username,
+//       password: data.password,
+//       role: data.role || "user", // "user" | "admin"
+//       readerId: data.readerId ? new ObjectId(data.readerId) : undefined,
+//     };
+//     Object.keys(doc).forEach((k) => doc[k] === undefined && delete doc[k]);
+//     return doc;
+//   }
+
+//   async register(data) {
+//     const doc = this.extract(data);
+//     const exists = await this.User.findOne({ username: doc.username });
+//     if (exists) throw new Error("Username already exists");
+
+//     // Tạo Reader nếu chưa được truyền readerId
+//     let readerId = doc.readerId;
+//     if (!readerId && doc.role === "user") {
+//       const readerDoc = {
+//         hoLot: data.hoLot || "",
+//         ten: data.ten || doc.username,
+//         phai: data.phai || "",
+//         diaChi: data.diaChi || "",
+//         dienThoai: data.dienThoai || "",
+//         createdAt: new Date(),
+//         updatedAt: new Date(),
+//       };
+//       const r = await this.Reader.insertOne(readerDoc);
+//       readerId = r.insertedId;
+//     }
+
+//     const hashed = await bcrypt.hash(doc.password, 10);
+//     const insertData = {
+//       username: doc.username,
+//       password: hashed,
+//       role: doc.role,
+//     };
+
+//     if (readerId) insertData.readerId = readerId;
+
+//     const result = await this.User.insertOne(insertData);
+//     return await this.User.findOne({ _id: result.insertedId });
+//   }
+
+//   async login(username, password) {
+//     const user = await this.User.findOne({ username });
+//     if (!user) throw new Error("Invalid username or password");
+//     const match = await bcrypt.compare(password, user.password);
+//     if (!match) throw new Error("Invalid username or password");
+//     return user;
+//   }
+
+//   async findById(id) {
+//     return await this.User.findOne({ _id: new ObjectId(id) });
+//   }
+
+//   async findAll() {
+//     return await this.User.find({}).toArray();
+//   }
+
+//   async update(id, data) {
+//     const update = {};
+//     if (data.username) update.username = data.username;
+//     if (data.role) update.role = data.role;
+//     if (data.password) {
+//       update.password = await bcrypt.hash(data.password, 10);
+//     }
+//     if (data.readerId) {
+//       update.readerId = new ObjectId(data.readerId);
+//     }
+//     const result = await this.User.findOneAndUpdate(
+//       { _id: new ObjectId(id) },
+//       { $set: update },
+//       { returnDocument: "after" }
+//     );
+//     return result;
+//   }
+
+//   async delete(id) {
+//     const result = await this.User.findOneAndDelete({ _id: new ObjectId(id) });
+//     return result;
+//   }
+
+//   // tạo admin mặc định nếu chưa có
+//   async ensureDefaultAdmin() {
+//     const count = await this.User.countDocuments({ role: "admin" });
+//     if (count > 0) return;
+
+//     const username = process.env.ADMIN_USERNAME || "admin";
+//     const password = process.env.ADMIN_PASSWORD || "admin123";
+
+//     const hashed = await bcrypt.hash(password, 10);
+//     await this.User.insertOne({
+//       username,
+//       password: hashed,
+//       role: "admin",
+//       // admin không cần readerId
+//     });
+
+//     console.log(
+//       `\n[INIT] Default admin created: ${username} / ${password}\n` +
+//       `-> Hãy đổi mật khẩu sau khi đăng nhập!`
+//     );
+//   }
+// }
+
+// module.exports = UserService;
 const { ObjectId } = require("mongodb");
 const bcrypt = require("bcryptjs");
+const MongoDB = require("../utils/mongodb.util");
 
 class UserService {
   constructor(client) {
     this.db = client.db();
     this.User = this.db.collection("users");
     this.Reader = this.db.collection("readers");
+    this.Staff = this.db.collection("staffs");
   }
 
   extract(data) {
     const doc = {
       username: data.username,
       password: data.password,
-      role: data.role || "user", // "user" | "admin"
-      readerId: data.readerId ? new ObjectId(data.readerId) : undefined,
+      role: data.role || "user",
+      // readerId và staffId là số nguyên
+      readerId: data.readerId ? parseInt(data.readerId) : undefined,
+      staffId: data.staffId ? parseInt(data.staffId) : undefined,
     };
     Object.keys(doc).forEach((k) => doc[k] === undefined && delete doc[k]);
     return doc;
@@ -21,23 +143,47 @@ class UserService {
 
   async register(data) {
     const doc = this.extract(data);
+
     const exists = await this.User.findOne({ username: doc.username });
     if (exists) throw new Error("Username already exists");
 
-    // Tạo Reader nếu chưa được truyền readerId
     let readerId = doc.readerId;
-    if (!readerId && doc.role === "user") {
-      const readerDoc = {
-        hoLot: data.hoLot || "",
-        ten: data.ten || doc.username,
-        phai: data.phai || "",
-        diaChi: data.diaChi || "",
-        dienThoai: data.dienThoai || "",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const r = await this.Reader.insertOne(readerDoc);
-      readerId = r.insertedId;
+    let staffId = doc.staffId;
+
+    if (doc.role === "user") {
+      // --- TẠO READER (MADOCGIA) ID SỐ TỪ 30000 ---
+      if (!readerId) {
+        const generatedId = await MongoDB.generateId("readers", 30000);
+        const readerDoc = {
+          _id: generatedId, // MADOCGIA
+          hoLot: data.hoLot || "",
+          ten: data.ten || doc.username,
+          phai: data.phai || "",
+          diaChi: data.diaChi || "",
+          dienThoai: data.dienThoai || "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        await this.Reader.insertOne(readerDoc);
+        readerId = generatedId;
+      }
+    } else if (["admin", "nhanvien"].includes(doc.role)) {
+      // --- TẠO STAFF (MASNV) ID SỐ TỪ 50000 ---
+      if (!staffId) {
+        const generatedId = await MongoDB.generateId("staffs", 50000);
+        const staffDoc = {
+          _id: generatedId, // MASNV
+          msnv: doc.username, // Vẫn giữ username làm mã định danh text
+          hoTenNV: data.hoTen || data.ten || doc.username,
+          chucVu: doc.role,
+          diaChi: data.diaChi || "",
+          soDienThoai: data.dienThoai || data.soDienThoai || "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        await this.Staff.insertOne(staffDoc);
+        staffId = generatedId;
+      }
     }
 
     const hashed = await bcrypt.hash(doc.password, 10);
@@ -48,6 +194,7 @@ class UserService {
     };
 
     if (readerId) insertData.readerId = readerId;
+    if (staffId) insertData.staffId = staffId;
 
     const result = await this.User.insertOne(insertData);
     return await this.User.findOne({ _id: result.insertedId });
@@ -76,9 +223,10 @@ class UserService {
     if (data.password) {
       update.password = await bcrypt.hash(data.password, 10);
     }
-    if (data.readerId) {
-      update.readerId = new ObjectId(data.readerId);
-    }
+    // Update link ID (số nguyên)
+    if (data.readerId) update.readerId = parseInt(data.readerId);
+    if (data.staffId) update.staffId = parseInt(data.staffId);
+
     const result = await this.User.findOneAndUpdate(
       { _id: new ObjectId(id) },
       { $set: update },
@@ -88,11 +236,11 @@ class UserService {
   }
 
   async delete(id) {
+    // Logic xóa user, có thể xóa luôn reader/staff nếu muốn
     const result = await this.User.findOneAndDelete({ _id: new ObjectId(id) });
     return result;
   }
 
-  // tạo admin mặc định nếu chưa có
   async ensureDefaultAdmin() {
     const count = await this.User.countDocuments({ role: "admin" });
     if (count > 0) return;
@@ -100,17 +248,30 @@ class UserService {
     const username = process.env.ADMIN_USERNAME || "admin";
     const password = process.env.ADMIN_PASSWORD || "admin123";
 
+    // Tạo staff cho admin mặc định (ID số)
+    const generatedId = await MongoDB.generateId("staffs", 50000);
+    const staffDoc = {
+      _id: generatedId,
+      msnv: username,
+      hoTenNV: "Administrator",
+      chucVu: "admin",
+      diaChi: "System",
+      soDienThoai: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await this.Staff.insertOne(staffDoc);
+
     const hashed = await bcrypt.hash(password, 10);
     await this.User.insertOne({
       username,
       password: hashed,
       role: "admin",
-      // admin không cần readerId
+      staffId: generatedId,
     });
 
     console.log(
-      `\n[INIT] Default admin created: ${username} / ${password}\n` +
-      `-> Hãy đổi mật khẩu sau khi đăng nhập!`
+      `\n[INIT] Default admin created: ${username} / ${password} (MASNV: ${generatedId})\n`
     );
   }
 }
