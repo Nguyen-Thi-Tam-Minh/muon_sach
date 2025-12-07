@@ -7,7 +7,7 @@
                     class="bg-white text-[#6D94C5] font-bold rounded px-2 py-1 text-lg shadow-sm group-hover:bg-indigo-50 transition-colors">
                     TV
                 </div>
-                <h1 class="text-xl font-bold tracking-wide">Thư Viện Online</h1>
+                <h1 class="text-xl font-bold tracking-wide">Thư Viện Sách</h1>
             </RouterLink>
 
             <div class="flex items-center gap-6">
@@ -38,7 +38,7 @@
                     <template v-if="auth.user">
                         <div class="hidden sm:block mr-1 text-right">
                             <span class="text-sm font-bold text-white block leading-tight">{{ auth.user.username
-                                }}</span>
+                            }}</span>
                         </div>
 
                         <div class="relative group h-16 flex items-center">

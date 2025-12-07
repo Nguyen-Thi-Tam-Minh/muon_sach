@@ -25,6 +25,13 @@
         </div>
 
         <div>
+          <label class="block text-xs font-medium mb-1">Mô tả nội dung</label>
+          <textarea v-model="form.description"
+            class="border rounded px-2 py-1.5 w-full text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none"
+            placeholder="Tóm tắt nội dung sách..."></textarea>
+        </div>
+
+        <div>
           <label class="block text-xs font-medium mb-1">Tác giả</label>
           <input class="border rounded px-2 py-1.5 w-full text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             v-model="form.author" />
@@ -172,7 +179,16 @@ onMounted(load);
 
 // Reset form
 function reset() {
-  form.value = {};
+  form.value = {
+    title: "",
+    author: "",
+    description: "", // Reset description
+    image: "",
+    price: 0,
+    copies: 0,
+    publishedYear: null,
+    maNXB: undefined
+  };
   tags.value = "";
 }
 

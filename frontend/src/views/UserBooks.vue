@@ -42,7 +42,7 @@
             Tác giả: <span class="text-slate-700 font-medium">{{ book.author || 'Chưa rõ' }}</span>
           </p>
 
-          <p class="text-base font-bold text-slate-800 mb-4">
+          <p class="text-sm font-bold text-emerald-600 mb-4">
             Giá: {{ formatPrice(book.price) }}đ
           </p>
 

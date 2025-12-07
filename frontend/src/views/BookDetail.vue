@@ -28,7 +28,7 @@
                             {{ book.title }}
                         </h1>
 
-                        <div class="space-y-2 text-sm text-slate-600 mb-6">
+                        <div class="space-y-2 text-sm text-slate-600 mb-4">
                             <p>Mã sách: <span class="text-slate-500">{{ book._id }}</span></p>
                             <p>Tác giả: <strong class="text-slate-800 text-base">{{ book.author }}</strong></p>
                             <p>
@@ -37,24 +37,36 @@
                             </p>
                         </div>
 
-                        <div class="text-3xl font-bold text-emerald-600 mb-2 flex items-center gap-1">
-                            <span class="text-2xl">💲</span> {{ formatPrice(book.price) }}đ
+                        <div class="text-xl font-bold text-emerald-600 mb-2">
+                            Giá: {{ formatPrice(book.price) }}đ
                         </div>
 
-                        <div class="text-sm mb-10">
+                        <div class="text-sm mb-6">
                             Số quyển còn: <strong :class="book.copies > 0 ? 'text-emerald-600' : 'text-rose-600'">{{
                                 book.copies }}</strong>
                         </div>
 
-                        <hr class="border-gray-100 mb-8" />
+                        <div class="mb-8 p-4 bg-gray-50 rounded border border-gray-100 relative">
+                            <h3 class="font-bold text-slate-700 mb-2 uppercase text-xs">Mô tả nội dung</h3>
+
+                            <p
+                                class="text-slate-600 text-sm leading-relaxed whitespace-pre-line transition-all duration-300">
+                                {{ displayedDescription }}
+                            </p>
+
+                            <button v-if="shouldShowReadMore" @click="isExpanded = !isExpanded"
+                                class="w-full flex items-center justify-center gap-1 mt-3 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors focus:outline-none">
+                                {{ isExpanded ? 'Thu gọn' : 'Xem thêm' }}
+                                <span class="text-[10px]">{{ isExpanded ? '▲' : '▼' }}</span>
+                            </button>
+                        </div>
 
                         <div class="mt-auto">
-
                             <button v-if="book.copies > 0"
-                                class="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-3 text-lg"
+                                class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg shadow-md transition-all active:scale-[0.99] flex items-center justify-center gap-3 text-base"
                                 @click="handleBorrow">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                                    stroke="currentColor" class="w-6 h-6">
+                                    stroke="currentColor" class="w-5 h-5">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                         d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                                 </svg>
@@ -62,9 +74,9 @@
                             </button>
 
                             <div v-else
-                                class="w-full py-4 bg-slate-400 text-white font-bold rounded-lg shadow-inner text-center flex items-center justify-center gap-2 text-lg cursor-not-allowed select-none">
+                                class="w-full py-3 bg-slate-400 text-white font-bold rounded-lg shadow-inner text-center flex items-center justify-center gap-2 text-base cursor-not-allowed select-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                                    stroke="currentColor" class="w-6 h-6">
+                                    stroke="currentColor" class="w-5 h-5">
                                     <path stroke-linecap="round" stroke-linejoin="round"
                                         d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                                 </svg>
@@ -102,7 +114,28 @@ const book = ref(null);
 const loading = ref(true);
 const publishers = ref([]);
 
-// Lấy tên NXB
+// State cho chức năng Xem thêm
+const isExpanded = ref(false);
+const DESCRIPTION_LIMIT = 300; // Giới hạn ký tự
+
+// Tính toán xem có cần hiện nút Xem thêm không
+const shouldShowReadMore = computed(() => {
+    return (book.value?.description?.length || 0) > DESCRIPTION_LIMIT;
+});
+
+// Nội dung hiển thị thực tế
+const displayedDescription = computed(() => {
+    const desc = book.value?.description || 'Chưa có mô tả cho cuốn sách này.';
+
+    // Nếu ngắn hoặc đang mở rộng thì hiện hết
+    if (!shouldShowReadMore.value || isExpanded.value) {
+        return desc;
+    }
+
+    // Nếu dài và đang thu gọn thì cắt bớt + ...
+    return desc.substring(0, DESCRIPTION_LIMIT) + '...';
+});
+
 const publisherName = computed(() => {
     if (!book.value?.maNXB || publishers.value.length === 0) return "Đang cập nhật";
     const p = publishers.value.find(pub => pub._id === book.value.maNXB);
@@ -134,7 +167,6 @@ async function loadData() {
 }
 
 async function handleBorrow() {
-    // Kiểm tra đăng nhập
     if (!auth.readerId()) {
         if (confirm("Bạn cần đăng nhập để mượn sách. Đến trang đăng nhập ngay?")) {
             router.push("/login");
@@ -142,14 +174,12 @@ async function handleBorrow() {
         return;
     }
 
-    // Xác nhận mượn
     if (!confirm(`Xác nhận gửi yêu cầu mượn cuốn: "${book.value.title}"?`)) return;
 
     try {
         await BorrowService.create({ maSach: book.value._id });
         showToast("Đã gửi yêu cầu mượn thành công!", "success");
-        // Reload lại để cập nhật số lượng (nếu backend có trừ ngay) hoặc chỉ để refresh trạng thái
-        // Tuy nhiên theo logic mượn, thường là pending nên số lượng chưa trừ ngay.
+        router.push({ name: 'borrow.history' });
     } catch (e) {
         showToast(e.response?.data?.message || "Lỗi khi mượn sách", "error");
     }

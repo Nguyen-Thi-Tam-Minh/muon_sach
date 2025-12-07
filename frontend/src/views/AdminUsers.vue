@@ -20,9 +20,6 @@
             <input v-model="form.username"
               class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               :disabled="editing" placeholder="Nhập tên đăng nhập..." required autocomplete="new-username" />
-            <p class="text-[10px] text-slate-400 mt-1 italic">
-              * Mã số sẽ được hệ thống tự động sinh.
-            </p>
           </div>
 
           <div>
