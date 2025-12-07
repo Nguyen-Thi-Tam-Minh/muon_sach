@@ -46,17 +46,11 @@
                 <div class="font-semibold">
                   {{ bookName(r.maSach) }}
                 </div>
-                <div class="text-[11px] text-slate-500">
-                  ID phiếu: {{ r._id }}
-                </div>
               </td>
               <td class="border p-2 text-center">
-                <span class="px-3 py-1 rounded-full text-xs font-medium" :class="statusClass(r.status)">
-                  {{ formatStatus(r.status) }}
+                <span class="px-3 py-1 rounded-full text-xs font-medium border" :class="statusClass(r)">
+                  {{ formatStatus(r) }}
                 </span>
-                <div v-if="isOverdue(r)" class="text-[11px] text-rose-600 mt-1">
-                  Quá hạn trả!
-                </div>
               </td>
               <td class="border p-2 text-center text-xs">
                 {{ fmt(r.ngayMuon) }}
@@ -123,16 +117,20 @@ function bookName(id) {
 function fmt(d) {
   return d ? new Date(d).toLocaleString() : "";
 }
+
+// Hàm kiểm tra quá hạn
 function isOverdue(r) {
-  return (
-    r.status === "borrowed" &&
-    r.dueDate &&
-    new Date(r.dueDate).getTime() < Date.now()
-  );
+  return r.status === "borrowed" && r.dueDate && new Date(r.dueDate).getTime() < Date.now();
 }
 
-// Hàm chuyển đổi trạng thái sang tiếng Việt
-function formatStatus(status) {
+// LOGIC HIỂN THỊ TRẠNG THÁI MỚI (Đã gộp "Quá hạn" và "Trả trễ")
+function formatStatus(r) {
+  // 1. Nếu DB đã đánh dấu lateReturn (do bạn test tay hoặc đã trả muộn)
+  if (r.lateReturn) return "Trả trễ";
+
+  // 2. Nếu đang mượn mà quá hạn (tính toán realtime)
+  if (isOverdue(r)) return "Trả trễ";
+
   const map = {
     pending: "Đang chờ duyệt",
     approved: "Đã duyệt",
@@ -140,21 +138,21 @@ function formatStatus(status) {
     returned: "Đã trả",
     rejected: "Đã từ chối"
   };
-  return map[status] || status;
+  return map[r.status] || r.status;
 }
 
-function statusClass(s) {
-  switch (s) {
-    case "pending":
-      return "bg-slate-100 text-slate-700";
-    case "approved":
-      return "bg-amber-100 text-amber-800";
-    case "borrowed":
-      return "bg-blue-100 text-blue-800";
-    case "returned":
-      return "bg-emerald-100 text-emerald-800";
-    default:
-      return "bg-slate-100 text-slate-700";
+function statusClass(r) {
+  // Nếu trễ hoặc quá hạn -> Màu đỏ
+  if (r.lateReturn || isOverdue(r)) {
+    return "bg-rose-100 text-rose-800 border-rose-200";
+  }
+
+  switch (r.status) {
+    case "pending": return "bg-slate-100 text-slate-700 border-slate-200";
+    case "approved": return "bg-amber-100 text-amber-800 border-amber-200";
+    case "borrowed": return "bg-blue-100 text-blue-800 border-blue-200";
+    case "returned": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+    default: return "bg-slate-100 text-slate-700 border-slate-200";
   }
 }
 
@@ -168,14 +166,8 @@ async function load() {
 
 onMounted(load);
 
-watch(
-  () => auth.readerId(),
-  () => {
-    load();
-  }
-);
+watch(() => auth.readerId(), () => { load(); });
 
-// SORT & PAGINATION
 const sortedRows = computed(() => {
   const arr = [...rows.value];
   arr.sort((a, b) => {
@@ -204,9 +196,7 @@ const sortedRows = computed(() => {
   return arr;
 });
 
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(sortedRows.value.length / pageSize.value))
-);
+const totalPages = computed(() => Math.max(1, Math.ceil(sortedRows.value.length / pageSize.value)));
 
 const paginatedRows = computed(() => {
   if (currentPage.value > totalPages.value) currentPage.value = totalPages.value;

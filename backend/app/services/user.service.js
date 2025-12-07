@@ -1,5 +1,5 @@
 const { ObjectId } = require("mongodb");
-const bcrypt = require("bcryptjs");
+// const bcrypt = require("bcryptjs"); // Tắt mã hóa
 const MongoDB = require("../utils/mongodb.util");
 
 class UserService {
@@ -15,7 +15,6 @@ class UserService {
       username: data.username,
       password: data.password,
       role: data.role || "user",
-      // readerId và staffId là số nguyên
       readerId: data.readerId ? parseInt(data.readerId) : undefined,
       staffId: data.staffId ? parseInt(data.staffId) : undefined,
     };
@@ -29,17 +28,21 @@ class UserService {
     const exists = await this.User.findOne({ username: doc.username });
     if (exists) throw new Error("Username already exists");
 
+    const password = doc.password;
+
     let readerId = doc.readerId;
     let staffId = doc.staffId;
 
     if (doc.role === "user") {
-      // --- TẠO READER (MADOCGIA) ID SỐ TỪ 30000 ---
+      // --- TẠO READER (ĐỘC GIẢ) ---
       if (!readerId) {
         const generatedId = await MongoDB.generateId("readers", 30000);
         const readerDoc = {
-          _id: generatedId, // MADOCGIA
+          _id: generatedId,
+          password: password,
           hoLot: data.hoLot || "",
           ten: data.ten || doc.username,
+          ngaySinh: data.ngaySinh ? new Date(data.ngaySinh) : null,
           phai: data.phai || "",
           diaChi: data.diaChi || "",
           dienThoai: data.dienThoai || "",
@@ -50,28 +53,38 @@ class UserService {
         readerId = generatedId;
       }
     } else if (["admin", "nhanvien"].includes(doc.role)) {
-      // --- TẠO STAFF (MASNV) ID SỐ TỪ 50000 ---
+      // --- TẠO STAFF ---
       if (!staffId) {
+        // Sinh ID số bắt đầu từ 50000
         const generatedId = await MongoDB.generateId("staffs", 50000);
+
         const staffDoc = {
-          _id: generatedId, // MASNV
-          msnv: doc.username, // Vẫn giữ username làm mã định danh text
-          hoTenNV: data.hoTen || data.ten || doc.username,
-          chucVu: doc.role,
+          _id: generatedId,
+
+          // SỬA: MSNV lấy theo ID số vừa sinh (50000, 50001...)
+          // Thay vì lấy doc.username như trước
+          msnv: generatedId,
+
+          password: password,
+          hoTenNV: data.hoTen || "",
+          chucVu:
+            data.chucVu ||
+            (doc.role === "admin" ? "Quản trị viên" : "Nhân viên"),
           diaChi: data.diaChi || "",
           soDienThoai: data.dienThoai || data.soDienThoai || "",
           createdAt: new Date(),
           updatedAt: new Date(),
         };
+
         await this.Staff.insertOne(staffDoc);
         staffId = generatedId;
       }
     }
 
-    const hashed = await bcrypt.hash(doc.password, 10);
+    // --- TẠO USER ---
     const insertData = {
       username: doc.username,
-      password: hashed,
+      password: password,
       role: doc.role,
     };
 
@@ -85,7 +98,9 @@ class UserService {
   async login(username, password) {
     const user = await this.User.findOne({ username });
     if (!user) throw new Error("Invalid username or password");
-    const match = await bcrypt.compare(password, user.password);
+
+    const match = password === user.password;
+
     if (!match) throw new Error("Invalid username or password");
     return user;
   }
@@ -95,9 +110,7 @@ class UserService {
   }
 
   async findAll() {
-    // Sử dụng aggregate để nối bảng (Join)
     return await this.User.aggregate([
-      // 1. Nối với bảng readers dựa trên readerId
       {
         $lookup: {
           from: "readers",
@@ -106,7 +119,6 @@ class UserService {
           as: "readerInfo",
         },
       },
-      // 2. Nối với bảng staffs dựa trên staffId
       {
         $lookup: {
           from: "staffs",
@@ -115,26 +127,31 @@ class UserService {
           as: "staffInfo",
         },
       },
-      // 3. Giải nén mảng kết quả (unwind)
       { $unwind: { path: "$readerInfo", preserveNullAndEmptyArrays: true } },
       { $unwind: { path: "$staffInfo", preserveNullAndEmptyArrays: true } },
-
-      // 4. Tạo các trường hiển thị chung (diaChi, dienThoai)
       {
         $addFields: {
-          // Lấy địa chỉ từ Reader hoặc Staff
           diaChi: { $ifNull: ["$readerInfo.diaChi", "$staffInfo.diaChi"] },
-          // Lấy SĐT (Reader dùng 'dienThoai', Staff dùng 'soDienThoai')
           dienThoai: {
             $ifNull: ["$readerInfo.dienThoai", "$staffInfo.soDienThoai"],
           },
+          hoTenHienThi: {
+            $ifNull: [
+              "$staffInfo.hoTenNV",
+              {
+                $concat: [
+                  { $ifNull: ["$readerInfo.hoLot", ""] },
+                  " ",
+                  { $ifNull: ["$readerInfo.ten", ""] },
+                ],
+              },
+            ],
+          },
+          chucVu: "$staffInfo.chucVu",
         },
       },
-      // 5. Loại bỏ các trường không cần thiết (để gọn dữ liệu trả về)
       {
         $project: {
-          readerInfo: 0,
-          staffInfo: 0,
           password: 0,
         },
       },
@@ -143,14 +160,52 @@ class UserService {
 
   async update(id, data) {
     const update = {};
+    const password = data.password;
+
     if (data.username) update.username = data.username;
     if (data.role) update.role = data.role;
-    if (data.password) {
-      update.password = await bcrypt.hash(data.password, 10);
+    if (password) update.password = password;
+
+    const user = await this.User.findOne({ _id: new ObjectId(id) });
+
+    if (user) {
+      if (user.staffId) {
+        const staffUpdate = {};
+        if (data.hoTen !== undefined) staffUpdate.hoTenNV = data.hoTen;
+        if (data.chucVu !== undefined) staffUpdate.chucVu = data.chucVu;
+        if (data.diaChi !== undefined) staffUpdate.diaChi = data.diaChi;
+        if (data.dienThoai !== undefined)
+          staffUpdate.soDienThoai = data.dienThoai;
+        if (password) staffUpdate.password = password;
+
+        if (Object.keys(staffUpdate).length > 0) {
+          await this.Staff.updateOne(
+            { _id: user.staffId },
+            { $set: staffUpdate }
+          );
+        }
+      }
+
+      if (user.readerId) {
+        const readerUpdate = {};
+        if (data.hoLot !== undefined) readerUpdate.hoLot = data.hoLot;
+        if (data.ten !== undefined) readerUpdate.ten = data.ten;
+        if (data.ngaySinh !== undefined)
+          readerUpdate.ngaySinh = new Date(data.ngaySinh);
+        if (data.phai !== undefined) readerUpdate.phai = data.phai;
+        if (data.diaChi !== undefined) readerUpdate.diaChi = data.diaChi;
+        if (data.dienThoai !== undefined)
+          readerUpdate.dienThoai = data.dienThoai;
+        if (password) readerUpdate.password = password;
+
+        if (Object.keys(readerUpdate).length > 0) {
+          await this.Reader.updateOne(
+            { _id: user.readerId },
+            { $set: readerUpdate }
+          );
+        }
+      }
     }
-    // Update link ID (số nguyên)
-    if (data.readerId) update.readerId = parseInt(data.readerId);
-    if (data.staffId) update.staffId = parseInt(data.staffId);
 
     const result = await this.User.findOneAndUpdate(
       { _id: new ObjectId(id) },
@@ -161,7 +216,11 @@ class UserService {
   }
 
   async delete(id) {
-    // Logic xóa user, có thể xóa luôn reader/staff nếu muốn
+    const user = await this.User.findOne({ _id: new ObjectId(id) });
+    if (user) {
+      if (user.readerId) await this.Reader.deleteOne({ _id: user.readerId });
+      if (user.staffId) await this.Staff.deleteOne({ _id: user.staffId });
+    }
     const result = await this.User.findOneAndDelete({ _id: new ObjectId(id) });
     return result;
   }
@@ -173,13 +232,18 @@ class UserService {
     const username = process.env.ADMIN_USERNAME || "admin";
     const password = process.env.ADMIN_PASSWORD || "admin123";
 
-    // Tạo staff cho admin mặc định (ID số)
+    // Sinh ID số cho admin
     const generatedId = await MongoDB.generateId("staffs", 50000);
+
     const staffDoc = {
       _id: generatedId,
-      msnv: username,
+
+      // SỬA: MSNV của admin mặc định cũng là số (50000)
+      msnv: generatedId,
+
+      password: password,
       hoTenNV: "Administrator",
-      chucVu: "admin",
+      chucVu: "Quản trị viên",
       diaChi: "System",
       soDienThoai: "",
       createdAt: new Date(),
@@ -187,10 +251,9 @@ class UserService {
     };
     await this.Staff.insertOne(staffDoc);
 
-    const hashed = await bcrypt.hash(password, 10);
     await this.User.insertOne({
       username,
-      password: hashed,
+      password: password,
       role: "admin",
       staffId: generatedId,
     });

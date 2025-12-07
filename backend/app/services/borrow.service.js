@@ -9,22 +9,20 @@ class BorrowService {
 
   extractBorrowData(payload) {
     const doc = {
-      // SỬA: Chuyển sang parseInt thay vì ObjectId
       maDocGia: payload.maDocGia ? parseInt(payload.maDocGia) : undefined,
       maSach: payload.maSach ? parseInt(payload.maSach) : undefined,
       msnv: payload.msnv ? parseInt(payload.msnv) : undefined,
-
       status: payload.status,
       ngayMuon: payload.ngayMuon ? new Date(payload.ngayMuon) : undefined,
       ngayTra: payload.ngayTra ? new Date(payload.ngayTra) : undefined,
       dueDate: payload.dueDate ? new Date(payload.dueDate) : undefined,
+      lateReturn: payload.lateReturn || false,
     };
     Object.keys(doc).forEach((k) => doc[k] === undefined && delete doc[k]);
     return doc;
   }
 
   async _assertReaderAndBook(maDocGia, maSach) {
-    // SỬA: Tìm theo ID số
     const [reader, book] = await Promise.all([
       this.Reader.findOne({ _id: parseInt(maDocGia) }),
       this.Book.findOne({ _id: parseInt(maSach) }),
@@ -38,7 +36,7 @@ class BorrowService {
     const { maDocGia, maSach } = payload;
     await this._assertReaderAndBook(maDocGia, maSach);
 
-    // SỬA: Query bằng số
+    // Kiểm tra sách đang mượn
     const existingBorrow = await this.Borrow.findOne({
       maDocGia: parseInt(maDocGia),
       maSach: parseInt(maSach),
@@ -49,14 +47,20 @@ class BorrowService {
       throw new Error("Bạn đã yêu cầu mượn sách này rồi.");
     }
 
-    const lateReturnsCount = await this.Borrow.countDocuments({
+    // Đếm số lần vi phạm (Trả trễ + Đang quá hạn)
+    const now = new Date();
+    const lateCount = await this.Borrow.countDocuments({
       maDocGia: parseInt(maDocGia),
-      status: "returned",
-      $expr: { $gt: ["$ngayTra", "$dueDate"] },
+      $or: [
+        { lateReturn: true }, // Đã trả nhưng trễ
+        { status: "borrowed", dueDate: { $lt: now } }, // Đang mượn nhưng quá hạn
+      ],
     });
 
-    if (lateReturnsCount > 3) {
-      throw new Error("Bạn không được mượn sách do trả muộn quá 3 lần.");
+    if (lateCount > 3) {
+      throw new Error(
+        `Tài khoản bị khóa do có ${lateCount} lần vi phạm (Trả trễ hoặc quá hạn).`
+      );
     }
 
     const doc = {
@@ -65,6 +69,7 @@ class BorrowService {
       ngayMuon: null,
       ngayTra: null,
       dueDate: null,
+      lateReturn: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -75,7 +80,6 @@ class BorrowService {
   async findAll({ status, maDocGia } = {}) {
     const filter = {};
     if (status) filter.status = status;
-    // SỬA: Chuyển maDocGia sang số
     if (maDocGia) filter.maDocGia = parseInt(maDocGia);
 
     const pipeline = [
@@ -105,7 +109,6 @@ class BorrowService {
   }
 
   async findById(id) {
-    // ID của phiếu mượn vẫn giữ là ObjectId (không cần đổi sang số)
     return await this.Borrow.findOne({ _id: new ObjectId(id) });
   }
 
@@ -115,7 +118,7 @@ class BorrowService {
       {
         $set: {
           status: "approved",
-          msnv: msnv ? parseInt(msnv) : null, // SỬA: msnv là số
+          msnv: msnv ? parseInt(msnv) : null,
           updatedAt: new Date(),
         },
       },
@@ -134,7 +137,6 @@ class BorrowService {
     }
 
     const now = new Date();
-    // SỬA: Query maDocGia là số
     const hasOverdue = await this.Borrow.findOne({
       maDocGia: borrow.maDocGia,
       status: "borrowed",
@@ -142,11 +144,10 @@ class BorrowService {
     });
     if (hasOverdue) {
       throw new Error(
-        "Độc giả đang có sách mượn quá hạn, vui lòng trả trước khi mượn mới."
+        "Độc giả đang giữ sách quá hạn chưa trả, không thể duyệt phiếu mới."
       );
     }
 
-    // SỬA: Query maSach là số
     const book = await this.Book.findOne({ _id: borrow.maSach });
     if (!book) throw new Error("Book not found");
     if (!book.copies || book.copies <= 0) {
@@ -158,7 +159,7 @@ class BorrowService {
       { $inc: { copies: -1 } }
     );
 
-    const dueDays = 25;
+    const dueDays = 14;
     const dueDate = new Date(now.getTime() + dueDays * 24 * 60 * 60 * 1000);
 
     const result = await this.Borrow.findOneAndUpdate(
@@ -168,6 +169,7 @@ class BorrowService {
           status: "borrowed",
           ngayMuon: now,
           dueDate,
+          lateReturn: false,
           updatedAt: now,
         },
       },
@@ -176,6 +178,7 @@ class BorrowService {
     return result;
   }
 
+  // --- HÀM QUAN TRỌNG NHẤT CHO LOGIC TRẢ TRỄ ---
   async markReturned(id) {
     const borrow = await this.findById(id);
     if (!borrow) throw new Error("Borrow not found");
@@ -186,12 +189,23 @@ class BorrowService {
     await this.Book.updateOne({ _id: borrow.maSach }, { $inc: { copies: 1 } });
 
     const now = new Date();
+
+    // Logic xác định trễ hạn:
+    let isLate = false;
+
+    // Nếu có hạn trả VÀ (Ngày trả thực tế > Hạn trả)
+    // Dùng .getTime() để so sánh chính xác timestamp
+    if (borrow.dueDate && now.getTime() > new Date(borrow.dueDate).getTime()) {
+      isLate = true;
+    }
+
     const result = await this.Borrow.findOneAndUpdate(
       { _id: new ObjectId(id) },
       {
         $set: {
           status: "returned",
           ngayTra: now,
+          lateReturn: isLate, // Lưu cứng giá trị này vào DB
           updatedAt: now,
         },
       },

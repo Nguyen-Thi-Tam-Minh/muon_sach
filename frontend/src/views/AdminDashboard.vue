@@ -32,7 +32,7 @@
         </div>
         <div class="flex gap-2 text-[11px] text-slate-500 mt-1">
           <span class="px-2 py-0.5 rounded-full bg-slate-100">
-            Pending: {{ stats.pendingBorrows }}
+            Đang chờ duyệt: {{ stats.pendingBorrows }}
           </span>
           <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
             Đang mượn: {{ stats.borrowedBorrows }}

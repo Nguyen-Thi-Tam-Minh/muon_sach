@@ -8,7 +8,7 @@
         <div class="flex gap-2 items-center flex-wrap">
 
           <div class="flex bg-gray-100 p-1 rounded-lg">
-            <button v-for="s in ['all', 'pending', 'approved', 'borrowed', 'returned']" :key="s"
+            <button v-for="s in ['all', 'pending', 'borrowed', 'returned']" :key="s"
               @click="status = (s === 'all' ? '' : s); reload()"
               class="px-3 py-1 text-xs font-medium rounded-md transition-all"
               :class="(status === s || (s === 'all' && !status)) ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
@@ -51,6 +51,7 @@
             <tr v-for="r in paginatedRows" :key="r._id" class="hover:bg-slate-50 transition-colors">
               <td class="border p-3 font-medium text-slate-800 align-middle">
                 {{ r.book?.title || 'Sách không tồn tại' }}
+                <div class="text-[10px] text-gray-400 mt-1">ID Phiếu: ...{{ r._id.slice(-6) }}</div>
               </td>
 
               <td class="border p-3 align-middle">
@@ -74,9 +75,12 @@
               </td>
 
               <td class="border p-3 text-center align-middle">
-                <span class="px-2.5 py-1 rounded-full text-xs font-medium border" :class="statusClass(r.status)">
-                  {{ formatStatus(r.status) }}
-                </span>
+                <div class="flex flex-col items-center">
+                  <span class="px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap"
+                    :class="statusClass(r)">
+                    {{ formatStatus(r) }}
+                  </span>
+                </div>
               </td>
 
               <td class="border p-3 text-center align-middle">
@@ -143,7 +147,18 @@ function statusLabel(s) {
   return map[s] || s;
 }
 
-function formatStatus(status) {
+// === LOGIC MỚI ĐỂ HIỂN THỊ TRẠNG THÁI ===
+function formatStatus(r) {
+  // 1. Ưu tiên: Nếu DB đã có cờ lateReturn (Bạn set tay trong DB hoặc do trả trễ) -> Hiện "Trả trễ"
+  if (r.lateReturn) {
+    return "Trả trễ";
+  }
+
+  // 2. Nếu đang mượn nhưng đã quá ngày -> Hiện "Trả trễ"
+  if (isOverdue(r)) {
+    return "Trả trễ";
+  }
+
   const map = {
     pending: "Chờ duyệt",
     approved: "Đã duyệt",
@@ -151,11 +166,16 @@ function formatStatus(status) {
     returned: "Đã trả",
     rejected: "Từ chối"
   };
-  return map[status] || status;
+  return map[r.status] || r.status;
 }
 
-function statusClass(s) {
-  switch (s) {
+function statusClass(r) {
+  // Nếu bị trễ (do DB hoặc do quá hạn) -> Màu Đỏ
+  if (r.lateReturn || isOverdue(r)) {
+    return "bg-rose-100 text-rose-700 border-rose-200";
+  }
+
+  switch (r.status) {
     case "pending": return "bg-gray-100 text-gray-600 border-gray-200";
     case "approved": return "bg-amber-50 text-amber-700 border-amber-200";
     case "borrowed": return "bg-blue-50 text-blue-700 border-blue-200";
@@ -163,6 +183,12 @@ function statusClass(s) {
     default: return "bg-gray-50 text-gray-500 border-gray-200";
   }
 }
+
+function isOverdue(r) {
+  // Logic: Đang mượn VÀ có hạn trả VÀ (Hạn trả < Hiện tại)
+  return r.status === "borrowed" && r.dueDate && new Date(r.dueDate).getTime() < Date.now();
+}
+// ===========================================
 
 function getReaderName(r) {
   if (r.reader) {
@@ -176,10 +202,6 @@ function fmt(d) {
   if (!d) return "";
   const date = new Date(d);
   return date.toLocaleDateString("vi-VN");
-}
-
-function isOverdue(r) {
-  return r.status === "borrowed" && r.dueDate && new Date(r.dueDate).getTime() < Date.now();
 }
 
 async function reload() {
@@ -226,7 +248,6 @@ function setSort(key) {
 // ACTIONS
 async function borrowed(r) {
   try {
-    // Gọi hàm markBorrowed để chuyển trạng thái sang borrowed
     await BorrowService.markBorrowed(r._id);
     showToast("Đã duyệt và xác nhận mượn", "success");
     await reload();
