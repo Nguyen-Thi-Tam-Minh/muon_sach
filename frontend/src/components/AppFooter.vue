@@ -6,7 +6,7 @@
                 <div class="text-left">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="bg-white text-[#6D94C5] font-bold rounded px-2 py-1 text-sm shadow-sm">TV</div>
-                        <h2 class="text-white text-lg font-bold">Thư Viện Online</h2>
+                        <h2 class="text-white text-lg font-bold">Thư Viện Sách</h2>
                     </div>
                     <p class="text-sm leading-relaxed text-white/90">
                         Nơi tri thức được chia sẻ và lan tỏa. Hệ thống mượn trả sách trực tuyến tiện lợi, nhanh chóng
@@ -61,15 +61,15 @@
                     </div>
 
                     <div class="text-sm text-white/90 leading-6 inline-block text-left">
-                        <p>Email: <a href="mailto:hotro@thuvienonline.com"
-                                class="hover:underline">hotro@thuvienonline.com</a></p>
+                        <p>Email: <a href="mailto:hotro@thuviensach.com"
+                                class="hover:underline">hotro@thuviensach.com</a></p>
                         <p>Hotline: <strong>1900 1234</strong></p>
                     </div>
                 </div>
             </div>
 
             <div class="border-t border-white/20 pt-6 text-center text-xs text-white/70">
-                &copy; 2025 Thư Viện Online. All Rights Reserved.
+                &copy; 2025 Thư Viện Sách. All Rights Reserved.
             </div>
         </div>
     </footer>

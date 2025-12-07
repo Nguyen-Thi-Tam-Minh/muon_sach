@@ -2,143 +2,114 @@
   <div>
     <h2 class="text-2xl font-bold mb-4">Quản lý tài khoản</h2>
 
-    <div class="grid md:grid-cols-2 gap-4">
-      <!-- Form tạo / sửa -->
-      <div class="bg-white rounded-xl shadow p-4 space-y-3 border">
-        <h3 class="font-semibold mb-2">
+    <div class="grid md:grid-cols-3 gap-4">
+      <div class="md:col-span-1 bg-white rounded-xl shadow p-4 space-y-3 border h-fit">
+        <h3 class="font-semibold mb-2 border-b pb-2">
           {{ editing ? "Sửa tài khoản" : "Tạo tài khoản mới" }}
         </h3>
 
         <form @submit.prevent="submit" class="space-y-3">
           <div>
-            <label class="block text-sm font-medium mb-1">Username</label>
-            <input
-              v-model="form.username"
-              class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              :disabled="editing"
-              required
-            />
+            <label class="block text-xs font-medium mb-1 text-slate-600">Username</label>
+            <input v-model="form.username"
+              class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              :disabled="editing" placeholder="Nhập tên đăng nhập..." required />
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-1">
-              {{ editing ? "Mật khẩu mới (bỏ trống nếu giữ nguyên)" : "Mật khẩu" }}
+            <label class="block text-xs font-medium mb-1 text-slate-600">
+              {{ editing ? "Mật khẩu mới (để trống nếu không đổi)" : "Mật khẩu" }}
             </label>
-            <input
-              v-model="form.password"
-              type="password"
-              class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              :required="!editing"
-            />
+            <input v-model="form.password" type="password"
+              class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              :required="!editing" placeholder="******" />
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-1">Vai trò</label>
-            <select
-              v-model="form.role"
-              class="border rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+            <label class="block text-xs font-medium mb-1 text-slate-600">Vai trò</label>
+            <select v-model="form.role"
+              class="border rounded px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="user">Độc giả (User)</option>
+              <option value="admin">Quản trị viên (Admin)</option>
             </select>
           </div>
 
-          <div class="flex gap-2">
+          <div class="flex gap-2 pt-2">
             <button
-              class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
-              type="submit"
-            >
-              {{ editing ? "Cập nhật" : "Tạo" }}
+              class="flex-1 px-3 py-2 rounded bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+              type="submit">
+              {{ editing ? "Cập nhật" : "Tạo mới" }}
             </button>
-            <button
-              v-if="editing"
-              class="px-3 py-2 rounded-lg border border-slate-300 text-sm hover:bg-slate-50"
-              type="button"
-              @click="reset"
-            >
+            <button v-if="editing" class="px-3 py-2 rounded border border-slate-300 text-sm hover:bg-slate-50"
+              type="button" @click="reset">
               Hủy
             </button>
           </div>
         </form>
       </div>
 
-      <!-- Danh sách -->
-      <div class="bg-white rounded-xl shadow p-4 border">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="font-semibold">Danh sách tài khoản</h3>
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-slate-500">Sort theo:</span>
-            <button
-              class="px-2 py-1 border rounded"
-              @click="setSort('username')"
-            >
-              Username
-              <span v-if="sortKey === 'username'" class="ml-1 text-[10px]">
-                {{ sortDir === "asc" ? "▲" : "▼" }}
-              </span>
-            </button>
-            <button
-              class="px-2 py-1 border rounded"
-              @click="setSort('role')"
-            >
-              Role
-              <span v-if="sortKey === 'role'" class="ml-1 text-[10px]">
-                {{ sortDir === "asc" ? "▲" : "▼" }}
-              </span>
-            </button>
-          </div>
+      <div class="md:col-span-2 bg-white rounded-xl shadow p-4 border flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-semibold text-slate-700">Danh sách tài khoản</h3>
+          <span class="text-xs text-slate-500">Tổng: {{ users.length }} tài khoản</span>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full border text-sm">
-            <thead>
-              <tr class="bg-slate-50">
-                <th class="border p-2 text-left">Username</th>
-                <th class="border p-2 text-center">Role</th>
-                <th class="border p-2 text-center w-32">Thao tác</th>
+        <div class="overflow-x-auto flex-1">
+          <table class="w-full border text-sm text-left">
+            <thead class="bg-slate-50 text-slate-600 font-medium">
+              <tr>
+                <th class="border p-3">Username</th>
+                <th class="border p-3">Địa chỉ</th>
+                <th class="border p-3">Điện thoại</th>
+                <th class="border p-3 text-center">Vai trò</th>
+                <th class="border p-3 text-center w-24">Hành động</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-for="u in sortedUsers" :key="u._id">
-                <td class="border p-2">{{ u.username }}</td>
-                <td class="border p-2 text-center">
-                  <span
-                    class="px-2 py-0.5 rounded-full text-xs"
-                    :class="u.role === 'admin'
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-emerald-100 text-emerald-800'"
-                  >
-                    {{ u.role }}
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="u in users" :key="u._id" class="hover:bg-slate-50 transition-colors">
+                <td class="border p-3 font-medium text-slate-800">
+                  {{ u.username }}
+                </td>
+
+                <td class="border p-3 text-slate-600 truncate max-w-[150px]" :title="u.diaChi">
+                  {{ u.diaChi || '---' }}
+                </td>
+
+                <td class="border p-3 text-slate-600">
+                  {{ u.dienThoai || '---' }}
+                </td>
+
+                <td class="border p-3 text-center">
+                  <span class="px-2 py-1 rounded-full text-xs font-bold border" :class="u.role === 'admin'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'">
+                    {{ u.role === 'admin' ? 'ADMIN' : 'USER' }}
                   </span>
                 </td>
-                <td class="border p-2 text-center">
-                  <button
-                    class="text-xs text-indigo-600 mr-2"
-                    @click="edit(u)"
-                  >
-                    Sửa
-                  </button>
-                  <button
-                    class="text-xs text-rose-600"
-                    @click="remove(u)"
-                  >
-                    Xóa
-                  </button>
+                <td class="border p-3 text-center">
+                  <div class="flex justify-center gap-2">
+                    <button class="text-indigo-600 hover:text-indigo-800 p-1 rounded hover:bg-indigo-50 transition"
+                      title="Sửa" @click="edit(u)">
+                      ✏️
+                    </button>
+                    <button class="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition"
+                      title="Xóa" @click="remove(u)">
+                      x
+                    </button>
+                  </div>
                 </td>
               </tr>
-              <tr v-if="!sortedUsers.length">
-                <td colspan="3" class="border p-2 text-center text-slate-500">
-                  Chưa có tài khoản nào.
+              <tr v-if="!users.length">
+                <td colspan="5" class="border p-8 text-center text-slate-500 italic">
+                  Chưa có tài khoản nào trong hệ thống.
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <p class="mt-2 text-xs text-slate-500">
-          * Admin mặc định được tạo trên server nếu chưa có:
-          <code>ADMIN_USERNAME / ADMIN_PASSWORD</code> trong .env,
-          hoặc mặc định <code>admin / admin123</code>.
+        <p class="mt-4 text-xs text-slate-400 italic text-center">
+          * Mật khẩu được mã hóa an toàn. Admin mặc định: <code>admin / admin123</code>.
         </p>
       </div>
     </div>
@@ -146,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted } from "vue";
 import UserService from "@/services/user.service";
 import { showToast } from "@/stores/toast";
 
@@ -155,87 +126,74 @@ const editing = ref(false);
 const currentId = ref(null);
 const form = ref({ username: "", password: "", role: "user" });
 
-const sortKey = ref("username");
-const sortDir = ref("asc");
-
+// Hàm reset form về trạng thái ban đầu
 function reset() {
   editing.value = false;
   currentId.value = null;
   form.value = { username: "", password: "", role: "user" };
 }
 
+// Tải danh sách user từ backend
 async function load() {
-  users.value = await UserService.list();
+  try {
+    users.value = await UserService.list();
+  } catch (error) {
+    showToast("Lỗi tải danh sách tài khoản", "error");
+  }
 }
 
 onMounted(load);
 
-const sortedUsers = computed(() => {
-  const arr = [...users.value];
-  arr.sort((a, b) => {
-    const ka = a[sortKey.value] ?? "";
-    const kb = b[sortKey.value] ?? "";
-    const sa = String(ka).toLowerCase();
-    const sb = String(kb).toLowerCase();
-    if (sa < sb) return sortDir.value === "asc" ? -1 : 1;
-    if (sa > sb) return sortDir.value === "asc" ? 1 : -1;
-    return 0;
-  });
-  return arr;
-});
-
-function setSort(key) {
-  if (sortKey.value === key) {
-    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
-  } else {
-    sortKey.value = key;
-    sortDir.value = "asc";
-  }
-}
-
+// Chuyển sang chế độ sửa
 function edit(u) {
   editing.value = true;
   currentId.value = u._id;
-  form.value = { username: u.username, password: "", role: u.role };
+  form.value = {
+    username: u.username,
+    password: "", // Không điền lại mật khẩu cũ vì đã mã hóa
+    role: u.role
+  };
 }
 
+// Xử lý submit form (Tạo mới hoặc Cập nhật)
 async function submit() {
   try {
     if (editing.value && currentId.value) {
+      // Logic Cập nhật
       const payload = { role: form.value.role };
       if (form.value.password) payload.password = form.value.password;
-      await UserService.update(currentId.value, payload);
 
-      // Cập nhật ngay trong mảng users
+      const updated = await UserService.update(currentId.value, payload);
+
+      // Cập nhật lại danh sách local để không cần gọi lại API
       const idx = users.value.findIndex((u) => u._id === currentId.value);
       if (idx !== -1) {
-        users.value[idx] = {
-          ...users.value[idx],
-          role: form.value.role,
-        };
+        // Giữ nguyên các thông tin cũ, chỉ update role (và thông tin khác nếu backend trả về)
+        users.value[idx] = { ...users.value[idx], ...updated, role: form.value.role };
       }
 
-      showToast("Đã cập nhật tài khoản", "success");
+      showToast("Cập nhật thành công", "success");
     } else {
+      // Logic Tạo mới
       const created = await UserService.create(form.value);
-      users.value.push(created);
-      showToast("Đã tạo tài khoản mới", "success");
+      users.value.push(created); // Thêm vào cuối danh sách
+      showToast("Tạo tài khoản thành công", "success");
     }
+    reset(); // Reset form sau khi thành công
   } catch (e) {
-    showToast("Thao tác với tài khoản thất bại", "error");
-  } finally {
-    reset();
+    showToast(e.response?.data?.message || "Thao tác thất bại", "error");
   }
 }
 
+// Xử lý xóa tài khoản
 async function remove(u) {
-  if (!confirm(`Xóa tài khoản "${u.username}"?`)) return;
+  if (!confirm(`Bạn có chắc muốn xóa tài khoản "${u.username}" không?`)) return;
   try {
     await UserService.delete(u._id);
     users.value = users.value.filter((x) => x._id !== u._id);
     showToast("Đã xóa tài khoản", "success");
   } catch (e) {
-    showToast("Không xóa được tài khoản", "error");
+    showToast("Không thể xóa tài khoản này", "error");
   }
 }
 </script>

@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen flex bg-slate-100">
-    <!-- Sidebar -->
     <aside class="bg-white shadow-lg w-60 flex-shrink-0 fixed inset-y-0 left-0 z-20 transform transition-transform duration-200
             md:translate-x-0" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'">
       <div class="h-full flex flex-col">
@@ -13,10 +12,18 @@
 
         <nav class="flex-1 px-2 py-4 text-sm space-y-1">
           <RouterLink v-for="item in links" :key="item.to" :to="item.to"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 text-slate-700"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 text-slate-700 transition-colors"
             :class="isActive(item.to) ? 'bg-indigo-100 text-indigo-700 font-semibold' : ''">
             <span>{{ item.icon }}</span>
             <span>{{ item.label }}</span>
+          </RouterLink>
+
+          <div class="my-2 border-t border-slate-100"></div>
+
+          <RouterLink to="/"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 text-slate-700 transition-colors">
+            <span>🏠</span>
+            <span>Về trang chủ</span>
           </RouterLink>
         </nav>
 
@@ -26,10 +33,8 @@
       </div>
     </aside>
 
-    <!-- Overlay mobile -->
     <div class="fixed inset-0 bg-black/30 z-10 md:hidden" v-if="sidebarOpen" @click="toggleSidebar"></div>
 
-    <!-- Main content -->
     <div class="flex-1 flex flex-col md:ml-60">
       <header class="h-12 bg-white shadow-sm flex items-center justify-between px-4">
         <div class="flex items-center gap-2">
