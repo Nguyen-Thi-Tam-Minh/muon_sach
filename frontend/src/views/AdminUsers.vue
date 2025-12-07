@@ -151,13 +151,17 @@
             <tbody>
               <tr v-for="u in displayList" :key="u._id"
                 class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                <td class="border p-3 align-top">
-                  <div class="font-bold" :class="activeTab === 'reader' ? 'text-emerald-700' : 'text-blue-700'">
-                    {{ u.hoTenHienThi && u.hoTenHienThi.trim() !== u.username ? u.hoTenHienThi : u.username }}
-                  </div>
 
-                  <div class="text-xs text-slate-500 font-mono mt-0.5">
-                    @{{ u.username }}
+                <td class="border p-3 align-top">
+                  <div class="flex flex-wrap items-baseline gap-2">
+                    <span class="font-bold text-base"
+                      :class="activeTab === 'reader' ? 'text-emerald-700' : 'text-blue-700'">
+                      {{ u.hoTenHienThi && u.hoTenHienThi.trim() !== u.username ? u.hoTenHienThi : u.username }}
+                    </span>
+
+                    <span class="text-xs text-slate-500 font-mono">
+                      ({{ u.username }})
+                    </span>
                   </div>
 
                   <div class="text-[10px] bg-gray-100 inline-block px-1 rounded mt-1" v-if="u.chucVu">

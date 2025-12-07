@@ -4,7 +4,7 @@ import { auth } from "@/stores/auth";
 import Login from "@/views/Login.vue";
 import Register from "@/views/Register.vue";
 import UserBooks from "@/views/UserBooks.vue";
-import BookDetail from "@/views/BookDetail.vue"; // <-- Import file mới
+import BookDetail from "@/views/BookDetail.vue";
 import BorrowHistory from "@/views/BorrowHistory.vue";
 import UserProfile from "@/views/UserProfile.vue";
 
@@ -24,16 +24,24 @@ const routes = [
     path: "/",
     name: "home",
     component: UserBooks,
-    meta: { role: "user" },
+    // Đã xóa meta: { role: "user" } để ai cũng xem được
   },
   {
-    path: "/books/:id", // <-- Route trang chi tiết
+    path: "/books/:id",
     name: "book.detail",
     component: BookDetail,
-    meta: { role: "user" },
+    // Đã xóa meta: { role: "user" } để khách có thể xem chi tiết sách
   },
-  { path: "/history", component: BorrowHistory, meta: { role: "user" } },
-  { path: "/profile", component: UserProfile, meta: { role: "user" } },
+  {
+    path: "/history",
+    component: BorrowHistory,
+    meta: { role: "user" }, // Trang này vẫn cần đăng nhập
+  },
+  {
+    path: "/profile",
+    component: UserProfile,
+    meta: { role: "user" }, // Trang này vẫn cần đăng nhập
+  },
 
   // ADMIN routes
   {
@@ -67,26 +75,25 @@ router.beforeEach((to, from, next) => {
     null
   );
 
-  // Các trang công khai
+  // Các trang công khai (Login, Register)
   if (to.path === "/login" || to.path === "/register") {
     return next();
   }
 
-  // Trang chủ (UserBooks) cho phép xem không cần login,
-  // nhưng nếu muốn mượn/xem chi tiết sâu thì tùy logic component
-  if (to.path === "/" && !requiredRole) {
+  // Nếu route không yêu cầu role (requiredRole là null), cho phép truy cập luôn
+  if (!requiredRole) {
     return next();
   }
 
-  if (!requiredRole) return next();
-
+  // Nếu route CÓ yêu cầu role mà chưa có token => Chuyển về login
   if (!auth.token) return next("/login");
 
+  // Nếu là trang admin mà không phải role admin => Về trang chủ
   if (requiredRole === "admin" && !auth.isAdmin()) {
     return next("/");
   }
 
-  // User login rồi không vào lại trang login/register
+  // Nếu đã login mà cố vào trang login/register => Về trang chủ
   if ((to.path === "/login" || to.path === "/register") && auth.user) {
     return next("/");
   }

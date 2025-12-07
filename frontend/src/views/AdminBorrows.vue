@@ -1,6 +1,6 @@
 <template>
   <section>
-    <h2 class="text-xl font-semibold mb-3">Quản lý Mượn/Trả</h2>
+    <h2 class="text-xl font-semibold mb-3">Quản lý mượn/trả sách</h2>
     <p class="text-sm text-gray-500 mb-4">Theo dõi và quản lý tất cả các hoạt động mượn trả sách trong hệ thống.</p>
 
     <div class="bg-white border rounded-xl p-4 shadow-sm">
@@ -8,7 +8,7 @@
         <div class="flex gap-2 items-center flex-wrap">
 
           <div class="flex bg-gray-100 p-1 rounded-lg">
-            <button v-for="s in ['all', 'pending', 'borrowed', 'returned']" :key="s"
+            <button v-for="s in ['all', 'pending', 'borrowed', 'returned', 'late']" :key="s"
               @click="status = (s === 'all' ? '' : s); reload()"
               class="px-3 py-1 text-xs font-medium rounded-md transition-all"
               :class="(status === s || (s === 'all' && !status)) ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'">
@@ -138,7 +138,14 @@ const pageSize = ref(5);
 const api = createApiClient("/api/borrows");
 
 function statusLabel(s) {
-  const map = { all: 'Tất cả', pending: 'Chờ duyệt', approved: 'Đã duyệt', borrowed: 'Đang mượn', returned: 'Đã trả' };
+  const map = {
+    all: 'Tất cả',
+    pending: 'Chờ duyệt',
+    approved: 'Đã duyệt',
+    borrowed: 'Đang mượn',
+    returned: 'Đã trả',
+    late: 'Trả trễ' // Thêm nhãn cho trạng thái mới
+  };
   return map[s] || s;
 }
 
@@ -200,9 +207,17 @@ function fmt(d) {
 
 async function reload() {
   try {
-    const params = {};
-    if (status.value) params.status = status.value;
-    rows.value = await BorrowService.list(params);
+    // LOGIC LỌC MỚI:
+    // Nếu chọn 'late' -> Tải tất cả rồi lọc thủ công (vì backend không có status='late')
+    if (status.value === 'late') {
+      const allRows = await BorrowService.list({});
+      rows.value = allRows.filter(r => r.lateReturn || isOverdue(r));
+    } else {
+      // Các trường hợp còn lại gọi API như bình thường
+      const params = {};
+      if (status.value && status.value !== 'all') params.status = status.value;
+      rows.value = await BorrowService.list(params);
+    }
     currentPage.value = 1;
   } catch (e) {
     console.error(e);
