@@ -51,7 +51,6 @@
             <tr v-for="r in paginatedRows" :key="r._id" class="hover:bg-slate-50 transition-colors">
               <td class="border p-3 font-medium text-slate-800 align-middle">
                 {{ r.book?.title || 'Sách không tồn tại' }}
-                <div class="text-[10px] text-gray-400 mt-1">ID Phiếu: ...{{ r._id.slice(-6) }}</div>
               </td>
 
               <td class="border p-3 align-middle">
@@ -66,10 +65,6 @@
               <td class="border p-3 text-center text-xs align-middle">
                 <div v-if="r.dueDate">
                   {{ fmt(r.dueDate) }}
-                  <div v-if="isOverdue(r)"
-                    class="text-[10px] text-rose-600 font-bold mt-1 bg-rose-50 inline-block px-1 rounded">
-                    Quá hạn
-                  </div>
                 </div>
                 <span v-else class="text-gray-400">---</span>
               </td>
@@ -147,7 +142,7 @@ function statusLabel(s) {
   return map[s] || s;
 }
 
-// === LOGIC MỚI ĐỂ HIỂN THỊ TRẠNG THÁI ===
+// LOGIC HIỂN THỊ
 function formatStatus(r) {
   // 1. Ưu tiên: Nếu DB đã có cờ lateReturn (Bạn set tay trong DB hoặc do trả trễ) -> Hiện "Trả trễ"
   if (r.lateReturn) {
@@ -188,7 +183,6 @@ function isOverdue(r) {
   // Logic: Đang mượn VÀ có hạn trả VÀ (Hạn trả < Hiện tại)
   return r.status === "borrowed" && r.dueDate && new Date(r.dueDate).getTime() < Date.now();
 }
-// ===========================================
 
 function getReaderName(r) {
   if (r.reader) {
