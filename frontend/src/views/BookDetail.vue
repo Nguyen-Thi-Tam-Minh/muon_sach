@@ -166,24 +166,52 @@ async function loadData() {
     }
 }
 
+// async function handleBorrow() {
+//     if (!auth.readerId()) {
+//         if (confirm("Bạn cần đăng nhập để mượn sách. Đến trang đăng nhập ngay?")) {
+//             router.push("/login");
+//         }
+//         return;
+//     }
+
+//     if (!confirm(`Xác nhận gửi yêu cầu mượn cuốn: "${book.value.title}"?`)) return;
+
+//     try {
+//         await BorrowService.create({ maSach: book.value._id });
+//         showToast("Đã gửi yêu cầu mượn thành công!", "success");
+//         router.push({ name: 'borrow.history' });
+//     } catch (e) {
+//         showToast(e.response?.data?.message || "Lỗi khi mượn sách", "error");
+//     }
+// }
 async function handleBorrow() {
+    // 1. Kiểm tra đăng nhập
     if (!auth.readerId()) {
-        if (confirm("Bạn cần đăng nhập để mượn sách. Đến trang đăng nhập ngay?")) {
+        if (confirm("Bạn cần đăng nhập tài khoản Độc giả để mượn sách. Đến trang đăng nhập ngay?")) {
             router.push("/login");
         }
         return;
     }
 
+    // 2. Xác nhận
     if (!confirm(`Xác nhận gửi yêu cầu mượn cuốn: "${book.value.title}"?`)) return;
 
     try {
+        // 3. Gọi API tạo phiếu mượn
         await BorrowService.create({ maSach: book.value._id });
+
+        // 4. Thông báo thành công
         showToast("Đã gửi yêu cầu mượn thành công!", "success");
-        router.push({ name: 'borrow.history' });
+
+        // --- DÒNG CẦN XÓA HOẶC COMMENT LẠI ---
+        // router.push({ name: 'borrow.history' }); 
+        // -------------------------------------
+
     } catch (e) {
-        showToast(e.response?.data?.message || "Lỗi khi mượn sách", "error");
+        // Hiển thị lỗi từ backend (ví dụ: Bạn đã mượn sách này rồi)
+        const msg = e.response?.data?.message || "Lỗi khi mượn sách";
+        showToast(msg, "error");
     }
 }
-
 onMounted(loadData);
 </script>
